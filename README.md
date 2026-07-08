@@ -100,6 +100,19 @@ results/convergence_sensitivity_summary.txt
 
 It compares SERIAL, DEA n=4, HDEA n=4 groups=2, and MOVING_HDEA n=4 groups=2 at `maxGen=1000`, `3000`, and `5000`, with 3 seeds per setting. It is a trend check only and does not replace the formal 70-run statistical comparison.
 
+## Reproduction Extension Experiment
+
+The reproduction and parallel-effect extension experiment is documented in:
+
+```text
+reports/06_reproduction_extension.md
+results/reproduction_extension_results.csv
+results/reproduction_extension_summary.csv
+results/reproduction_extension_summary.txt
+```
+
+It uses `maxGen=5000`, `migration_interval=25`, `local_to_global_ratio=20`, and 5 seeds to compare SERIAL, DEA, HDEA, and MOVING_HDEA at n=4 and n=9 where applicable. This experiment is a reduced, course-project-scale mechanism check against the reference paper. It does not replace the formal 70-run experiment and must not be described as complete paper reproduction.
+
 ## Common Commands
 
 Run the formal experiment only when explicitly needed, because it overwrites neither conclusions nor reports by itself and takes time:
@@ -116,6 +129,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_convergence_se
 python .\scripts\analyze_convergence_sensitivity.py .\results\convergence_sensitivity_results.csv
 ```
 
+Run the reproduction extension experiment:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_reproduction_extension.ps1
+python .\scripts\analyze_reproduction_extension.py .\results\reproduction_extension_results.csv
+```
+
 Generate report figures:
 
 ```powershell
@@ -125,7 +145,7 @@ python .\scripts\generate_report_figures.py
 Run report/output checks:
 
 ```powershell
-python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py
+python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py
 ```
 
 Check the protected formal result files:
