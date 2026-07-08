@@ -1,0 +1,13 @@
+record_type,algorithm,nproc,migration_interval,local_to_global_ratio,num_groups,count,best,mean,std,min,max,avg_time,comparison,mean_left,mean_right,p_value,better_group,significant_at_0.05,conclusion
+summary,SERIAL,1,0,0,0,10,430142,438472.100000,4628.069395,430142,444429,2.613500,,,,,,,
+summary,DEA,2,100,0,0,10,415765,430223.600000,6134.273319,415765,438572,2.701971,,,,,,,
+summary,DEA,4,100,0,0,10,424318,430458.000000,3508.236056,424318,434823,2.774825,,,,,,,
+summary,HDEA,4,100,5,2,10,426732,431573.700000,4266.829946,426732,438677,3.457383,,,,,,,
+summary,HDEA,6,100,5,3,10,426245,430320.900000,2496.949270,426245,433564,3.458822,,,,,,,
+ttest,,,,,,,,,,,,,SERIAL n=1 vs DEA n=2,438472.100000,430223.600000,0.003512,DEA n=2,yes,DEA n=2 has a lower mean and the difference is significant
+ttest,,,,,,,,,,,,,SERIAL n=1 vs DEA n=4,438472.100000,430458.000000,0.000435,DEA n=4,yes,DEA n=4 has a lower mean and the difference is significant
+ttest,,,,,,,,,,,,,SERIAL n=1 vs HDEA n=4 groups=2,438472.100000,431573.700000,0.002782,HDEA n=4 groups=2,yes,HDEA n=4 groups=2 has a lower mean and the difference is significant
+ttest,,,,,,,,,,,,,SERIAL n=1 vs HDEA n=6 groups=3,438472.100000,430320.900000,0.000242,HDEA n=6 groups=3,yes,HDEA n=6 groups=3 has a lower mean and the difference is significant
+ttest,,,,,,,,,,,,,DEA n=4 vs HDEA n=4 groups=2,430458.000000,431573.700000,0.531355,DEA n=4,no,"DEA n=4 has a lower mean, but the difference is not significant"
+ttest,,,,,,,,,,,,,DEA n=4 vs HDEA n=6 groups=3,430458.000000,430320.900000,0.921034,HDEA n=6 groups=3,no,"HDEA n=6 groups=3 has a lower mean, but the difference is not significant"
+ttest,,,,,,,,,,,,,HDEA n=4 groups=2 vs HDEA n=6 groups=3,431573.700000,430320.900000,0.435846,HDEA n=6 groups=3,no,"HDEA n=6 groups=3 has a lower mean, but the difference is not significant"

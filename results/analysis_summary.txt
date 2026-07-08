@@ -1,0 +1,18 @@
+Grouped statistics
+algorithm,nproc,count,best,mean,std,min,max,avg_time
+DEA,2,10,415765,430223.600,6134.273,415765,438572,3.484536
+DEA,4,10,424318,430458.000,3508.236,424318,434823,3.628990
+SERIAL,1,10,430142,438472.100,4628.069,430142,444429,3.314700
+
+Welch t-tests on global_best (two-sided; lower is better)
+comparison,status,t_stat,p_value,left_mean,right_mean,better_mean
+SERIAL n=1 vs DEA n=2,ok,3.394464,0.003512,438472.100,430223.600,DEA n=2
+SERIAL n=1 vs DEA n=4,ok,4.363827,0.000435,438472.100,430458.000,DEA n=4
+DEA n=2 vs DEA n=4,ok,-0.104893,0.917916,430223.600,430458.000,DEA n=2
+SERIAL n=1 vs DEA n=1,missing group,nan,nan,nan,nan,unknown
+
+Conclusion
+Smallest mean global_best: DEA n=2 with mean=430223.600.
+Smallest single best: DEA n=2 with best=415765.
+At least one DEA configuration has a lower mean than SERIAL with p-value < 0.05.
+A plausible reason is that multiple independently seeded subpopulations explore different regions, while ring migration propagates good tours without fully eliminating island diversity.

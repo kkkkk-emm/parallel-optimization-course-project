@@ -1,0 +1,37 @@
+section,metric,a,b,value
+summary,count,DEA n=1,,3
+summary,best,DEA n=1,,619697.0
+summary,mean,DEA n=1,,621656.6666666666
+summary,std,DEA n=1,,1752.6055840757022
+summary,min,DEA n=1,,619697.0
+summary,max,DEA n=1,,623074.0
+summary,avg_time,DEA n=1,,0.5536356666666667
+summary,count,DEA n=2,,3
+summary,best,DEA n=2,,614455.0
+summary,mean,DEA n=2,,617836.0
+summary,std,DEA n=2,,4608.285255927632
+summary,min,DEA n=2,,614455.0
+summary,max,DEA n=2,,623085.0
+summary,avg_time,DEA n=2,,0.568989
+summary,count,DEA n=4,,3
+summary,best,DEA n=4,,605646.0
+summary,mean,DEA n=4,,614654.0
+summary,std,DEA n=4,,7965.96459946942
+summary,min,DEA n=4,,605646.0
+summary,max,DEA n=4,,620770.0
+summary,avg_time,DEA n=4,,0.5815653333333334
+summary,count,SERIAL n=1,,3
+summary,best,SERIAL n=1,,619697.0
+summary,mean,SERIAL n=1,,621656.6666666666
+summary,std,SERIAL n=1,,1752.6055840757022
+summary,min,SERIAL n=1,,619697.0
+summary,max,SERIAL n=1,,623074.0
+summary,avg_time,SERIAL n=1,,0.5243333333333333
+ttest,p_value,SERIAL n=1 vs DEA n=2,ok,0.28588962023150905
+ttest,t_stat,SERIAL n=1 vs DEA n=2,ok,1.342226730422611
+ttest,p_value,SERIAL n=1 vs DEA n=4,ok,0.2647916037458267
+ttest,t_stat,SERIAL n=1 vs DEA n=4,ok,1.4870348095906565
+ttest,p_value,DEA n=2 vs DEA n=4,ok,0.5889714137374445
+ttest,t_stat,DEA n=2 vs DEA n=4,ok,0.5988765930960557
+ttest,p_value,SERIAL n=1 vs DEA n=1,ok,1.0
+ttest,t_stat,SERIAL n=1 vs DEA n=1,ok,0.0

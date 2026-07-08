@@ -1,0 +1,28 @@
+Grouped statistics
+| algorithm | nproc | migration_interval | local_to_global_ratio | num_groups | count | best | mean | std | min | max | avg_time |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SERIAL | 1 | 0 | 0 | 0 | 10 | 430142 | 438472.100 | 4628.069 | 430142 | 444429 | 2.613500 |
+| DEA | 2 | 100 | 0 | 0 | 10 | 415765 | 430223.600 | 6134.273 | 415765 | 438572 | 2.701971 |
+| DEA | 4 | 100 | 0 | 0 | 10 | 424318 | 430458.000 | 3508.236 | 424318 | 434823 | 2.774825 |
+| HDEA | 4 | 100 | 5 | 2 | 10 | 426732 | 431573.700 | 4266.830 | 426732 | 438677 | 3.457383 |
+| HDEA | 6 | 100 | 5 | 3 | 10 | 426245 | 430320.900 | 2496.949 | 426245 | 433564 | 3.458822 |
+
+Welch t-tests on global_best (two-sided; lower is better)
+| comparison | mean_left | mean_right | p_value | better_group | significant_at_0.05 | conclusion |
+| --- | --- | --- | --- | --- | --- | --- |
+| SERIAL n=1 vs DEA n=2 | 438472.100 | 430223.600 | 0.003512 | DEA n=2 | yes | DEA n=2 has a lower mean and the difference is significant |
+| SERIAL n=1 vs DEA n=4 | 438472.100 | 430458.000 | 0.000435 | DEA n=4 | yes | DEA n=4 has a lower mean and the difference is significant |
+| SERIAL n=1 vs HDEA n=4 groups=2 | 438472.100 | 431573.700 | 0.002782 | HDEA n=4 groups=2 | yes | HDEA n=4 groups=2 has a lower mean and the difference is significant |
+| SERIAL n=1 vs HDEA n=6 groups=3 | 438472.100 | 430320.900 | 0.000242 | HDEA n=6 groups=3 | yes | HDEA n=6 groups=3 has a lower mean and the difference is significant |
+| DEA n=4 vs HDEA n=4 groups=2 | 430458.000 | 431573.700 | 0.531355 | DEA n=4 | no | DEA n=4 has a lower mean, but the difference is not significant |
+| DEA n=4 vs HDEA n=6 groups=3 | 430458.000 | 430320.900 | 0.921034 | HDEA n=6 groups=3 | no | HDEA n=6 groups=3 has a lower mean, but the difference is not significant |
+| HDEA n=4 groups=2 vs HDEA n=6 groups=3 | 431573.700 | 430320.900 | 0.435846 | HDEA n=6 groups=3 | no | HDEA n=6 groups=3 has a lower mean, but the difference is not significant |
+
+Conclusion
+Smallest mean global_best: DEA n=2 groups=0 mean=430223.600.
+Smallest single best: DEA n=2 groups=0 best=415765.
+Significant comparisons at alpha=0.05:
+- SERIAL n=1 vs DEA n=2: DEA n=2 has a lower mean and the difference is significant (p=0.003512)
+- SERIAL n=1 vs DEA n=4: DEA n=4 has a lower mean and the difference is significant (p=0.000435)
+- SERIAL n=1 vs HDEA n=4 groups=2: HDEA n=4 groups=2 has a lower mean and the difference is significant (p=0.002782)
+- SERIAL n=1 vs HDEA n=6 groups=3: HDEA n=6 groups=3 has a lower mean and the difference is significant (p=0.000242)
