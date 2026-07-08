@@ -106,6 +106,8 @@ to:
 
 本文没有声称完整复现论文全部实验设置，也没有实现论文中所有拓扑形式。尤其是 MOVING_HDEA 当前实现为 ring moving colony，没有实现 random moving colony。本文关注的是将论文思想转化为可运行 MPI 程序，并在 `pcb442.tsp` 上进行可复现实验对比。
 
+因此，本文中的“复现”应理解为对 DEA、HDEA 和 moving colony HDEA 核心机制的课程项目实现，而不是对论文中全部数据集、全部参数组合和全部拓扑设置的逐项复刻。后续实验结论也只限定在当前代码、当前 `pcb442.tsp` 数据集、当前迁移参数和当前随机种子范围内。
+
 ## 3. 原始串行进化算法分析
 
 ### 3.1 数据读取与距离矩阵构造
@@ -360,6 +362,12 @@ TSP 是最小化问题，因此 `best` 和 `mean` 越小表示路径越短。
 | MOVING_HDEA n=6 | 600 |
 
 因此，SERIAL 与并行算法不是严格固定总计算预算比较，n=6 与 n=4 也不是严格同规模比较。更公平的同规模比较是 `DEA n=4`、`HDEA n=4 groups=2`、`MOVING_HDEA n=4 groups=2` 之间，以及 `HDEA n=6 groups=3` 与 `MOVING_HDEA n=6 groups=3` 之间。
+
+### 6.6 结果来源与保护原则
+
+本文中的正式统计数字优先来自 `results/final_analysis_summary.csv` 和 `results/final_analysis_summary.txt`，正式实验原始数据来自 `results/final_experiment_results.csv`。这些文件对应 7 组配置、每组 10 个 seed 的 70 行正式实验结果，是最终报告的主要依据。
+
+收敛趋势相关数字来自 `results/convergence_sensitivity_summary.csv` 和 `results/convergence_sensitivity_summary.txt`，其作用是说明 `maxGen` 对搜索质量的影响，不替代正式 70 次实验。报告撰写时不手工改写 CSV 结果，不用小样本补充实验推翻正式统计结论，也不把运行时间解释为当前项目的主要优化成果。
 
 ## 7. 正式实验结果与分析
 
