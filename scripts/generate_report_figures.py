@@ -8,7 +8,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 FINAL_SUMMARY = ROOT / "results" / "final_analysis_summary.csv"
 CONVERGENCE_SUMMARY = ROOT / "results" / "convergence_sensitivity_summary.csv"
+REPRODUCTION_SUMMARY = ROOT / "results" / "reproduction_extension_summary.csv"
 ASSET_DIR = ROOT / "reports" / "assets"
+FIGURE_DIR = ROOT / "results" / "figures"
 
 
 def read_csv(path):
@@ -40,6 +42,10 @@ def convergence_rows(record_type):
 def save_current(path):
     plt.tight_layout()
     plt.savefig(path, dpi=180, bbox_inches="tight")
+    if path.parent != FIGURE_DIR:
+        figure_path = FIGURE_DIR / path.name
+        plt.savefig(figure_path, dpi=180, bbox_inches="tight")
+        print(f"wrote {figure_path}")
     plt.close()
     print(f"wrote {path}")
 
@@ -130,6 +136,51 @@ def plot_final_time():
     save_current(ASSET_DIR / "fig_final_time_comparison.png")
 
 
+def plot_final_improvement_ratio():
+    rows = final_summary_rows()
+    serial = next(row for row in rows if row["algorithm"] == "SERIAL")
+    serial_mean = float(serial["mean"])
+    labels = [label(row) for row in rows]
+    values = [
+        0.0 if row["algorithm"] == "SERIAL" else (serial_mean - float(row["mean"])) / serial_mean * 100.0
+        for row in rows
+    ]
+    colors = ["#64748b", "#2563eb", "#3b82f6", "#16a34a", "#22c55e", "#f59e0b", "#f97316"]
+    fig, ax = plt.subplots(figsize=(11.5, 5.8))
+    bars = ax.bar(labels, values, color=colors)
+    ax.set_title("Final Experiment Improvement Ratio vs SERIAL", fontsize=15, pad=14)
+    ax.set_ylabel("mean improvement (%)")
+    ax.grid(axis="y", alpha=0.25)
+    ax.text(0.99, 0.96, "Positive values mean lower mean global_best than SERIAL", transform=ax.transAxes, ha="right", va="top", fontsize=9, color="#334155")
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.2f}%", ha="center", va="bottom", fontsize=8)
+    save_current(ASSET_DIR / "fig_final_improvement_ratio.png")
+
+
+def reproduction_summary_rows():
+    if not REPRODUCTION_SUMMARY.exists():
+        return []
+    return [row for row in read_csv(REPRODUCTION_SUMMARY) if row["record_type"] == "summary"]
+
+
+def plot_reproduction_improvement_ratio():
+    rows = reproduction_summary_rows()
+    if not rows:
+        return
+    labels = [label(row) for row in rows]
+    values = [float(row["improvement_vs_serial_mean_pct"]) for row in rows]
+    colors = ["#64748b", "#2563eb", "#3b82f6", "#16a34a", "#22c55e", "#f59e0b", "#f97316"]
+    fig, ax = plt.subplots(figsize=(11.5, 5.8))
+    bars = ax.bar(labels, values, color=colors[: len(values)])
+    ax.set_title("Reproduction Extension Improvement Ratio vs SERIAL", fontsize=15, pad=14)
+    ax.set_ylabel("mean improvement (%)")
+    ax.grid(axis="y", alpha=0.25)
+    ax.text(0.99, 0.96, "maxGen=5000, migration_interval=25, local_to_global_ratio=20", transform=ax.transAxes, ha="right", va="top", fontsize=9, color="#334155")
+    for bar, value in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.2f}%", ha="center", va="bottom", fontsize=8)
+    save_current(ASSET_DIR / "fig_reproduction_improvement_ratio.png")
+
+
 def plot_convergence():
     summaries = convergence_rows("summary")
     by_alg = {}
@@ -193,6 +244,7 @@ def main():
     if not CONVERGENCE_SUMMARY.exists():
         raise FileNotFoundError(CONVERGENCE_SUMMARY)
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({
         "font.family": "DejaVu Sans",
         "axes.edgecolor": "#334155",
@@ -205,8 +257,10 @@ def main():
     plot_final_bar("best", "fig_final_best_comparison.png", "Final Experiment Best Comparison", "best global_best")
     plot_final_bar("std", "fig_final_std_comparison.png", "Final Experiment Std Comparison", "std of global_best")
     plot_final_time()
+    plot_final_improvement_ratio()
     plot_convergence()
     plot_ttest_summary()
+    plot_reproduction_improvement_ratio()
 
 
 if __name__ == "__main__":
