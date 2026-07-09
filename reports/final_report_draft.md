@@ -6,7 +6,7 @@
 
 正式实验使用 `pcb442.tsp`，在 `maxGen=1000`、10 个随机种子、7 组算法配置下得到 70 行结果。统计结果显示，所有被比较的并行配置相对 SERIAL 均取得更低的平均 `global_best`，并且在 Welch t-test 中相对 SERIAL 达到 `p<0.05`。其中 `MOVING_HDEA n=6 groups=3` 的 mean 最低，为 `427890.600`；`DEA n=2` 的单次 best 最低，为 `415765`。但是，MOVING_HDEA 相对 DEA 或 HDEA 的 pairwise 差异未达到 `p<0.05`，因此本文只将其表述为在当前设置下具有均值优势趋势，而不扩大为对其他并行算法的显著优势。
 
-为增强报告的学术完整性，本文还使用已有 `maxGen` 敏感性实验和新增 `reproduction_extension` 补强实验。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用 `maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和 7 组配置，进一步显示并行配置在解质量上相对 SERIAL 有明显优势，其中 `HDEA n=9 groups=3` 的 mean 为 `105127.400`，相对 SERIAL mean 的 improvement ratio 为 `38.722%`。运行时间方面，当前结果不能支持稳定加速结论；本文将并行效果严格区分为“解质量提升”和“运行时间变化”两部分。
+为增强报告的学术完整性，本文还使用已有 `maxGen` 敏感性实验和新增 `reproduction_extension` 补强实验。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用同一 `pcb442.tsp` 数据集、同一整数欧氏距离矩阵和同一 `global_best` 含义，但参数预算与正式实验不同：`maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和最多 9 个 MPI rank。因此补强实验中 `HDEA n=9 groups=3` 的 mean `105127.400` 只能作为更长搜索预算和更接近论文参数口径下的补充现象，不能与正式实验的 `427890.600` 直接横向比较，也不能替代正式 70 行结果。运行时间方面，当前结果不能支持稳定加速结论；本文将并行效果严格区分为“解质量提升”和“运行时间变化”两部分。
 
 ## 1. 引言
 
@@ -179,6 +179,8 @@ mpiexec.exe
 
 数据集为 `data/pcb442.tsp`，包含 442 个城市。数据文件第一行为城市数量，后续每行包含城市编号和二维坐标。所有实验均使用同一数据集，因此实验结论不能直接推广为所有 TSP 实例上的算法排序。
 
+正式实验、收敛敏感性实验和补强实验使用同一类路径长度计算方式：先由城市二维坐标构造整数欧氏距离矩阵，即 `sqrt(dx^2+dy^2)+0.5` 后取整数，再计算闭环路径总长度。串行程序输出的 `global_best` 等于该次运行结束时本地种群中的最短路径长度；MPI 程序输出的 `global_best` 等于所有 rank 结束时本地最短路径长度的最小值。因此，不同实验文件中的 `global_best` 字段含义一致，但其数值会强烈受 `maxGen`、rank 数、迁移频率、local/global 比例和随机种子数量影响。
+
 ### 9.3 正式实验配置
 
 正式实验脚本为 `scripts/run_experiments_final.ps1`，分析脚本为 `scripts/analyze_results_final.py`。正式结果文件为：
@@ -221,6 +223,8 @@ reports/06_reproduction_extension.md
 ```
 
 该实验使用 `maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和 7 组配置。其目标是将 HDEA 参数口径尽量靠近论文中的 `20:1` local/global 轮次比，并使用 n=9、groups=3 作为论文 `4x4/6x6/8x8` 子种群结构的缩小版 proxy。
+
+需要特别说明的是，补强实验不是正式实验的续跑，也不是正式 70 行实验的替代版本。正式实验固定 `maxGen=1000`、10 个 seed、`migration_interval=100`、`local_to_global_ratio=5`，主要用于课程项目中统一比较 SERIAL、DEA、HDEA 和 MOVING_HDEA；补强实验固定 `maxGen=5000`、5 个 seed、`migration_interval=25`、`local_to_global_ratio=20`，主要用于检查更长迭代预算和更接近论文参数口径时是否仍能观察到并行解质量优势。两者可以共同说明趋势，但不能把补强实验的 10 万量级路径长度拿来推翻或重排正式实验的 42 万量级结论。
 
 ## 10. 评价指标
 
@@ -353,11 +357,13 @@ reports/06_reproduction_extension.md
 
 ### 15.1 解质量提升
 
-正式实验和补强实验均支持并行算法相对 SERIAL 的解质量优势。正式实验中，所有并行配置相对 SERIAL 的 mean 更低且 Welch t-test 显著。补强实验中，所有并行配置在 `maxGen=5000`、5 seed 下的 mean、median 均低于 SERIAL，且所有并行配置 5 次运行均低于 SERIAL best。
+正式实验是本文主结论的主要依据。正式实验中，所有并行配置相对 SERIAL 的 mean 更低且 Welch t-test 显著，因此可以写作“在正式实验设置下，并行进化结构相对串行基线改善了解质量”。补强实验只作为附录性质的复现性检查：在 `maxGen=5000`、5 seed、更频繁迁移和更多 rank 的设置下，所有并行配置的 mean、median 均低于该补强实验内部的 SERIAL baseline，且所有并行配置 5 次运行均低于补强实验内部 SERIAL best。
 
-![补强实验 improvement ratio](../results/figures/fig_reproduction_improvement_ratio.png)
+量级差异需要单独解释。正式实验的最低 mean 为 `MOVING_HDEA n=6 groups=3` 的 `427890.600`，补强实验的最低 mean 为 `HDEA n=9 groups=3` 的 `105127.400`。这两个数字使用同一数据集、同一路径长度计算方式和同一 `global_best` 字段含义，但不处在同一实验预算下：补强实验的 `maxGen` 是正式实验的 5 倍，迁移间隔从 100 降到 25，HDEA 的 `local_to_global_ratio` 从 5 改为 20，并新增 n=9、groups=3 配置。并且每个 MPI rank 都维护 `N_COLONY=100`，所以 n=9 配置对应 900 个并行子种群个体，而 SERIAL 只有 100 个体。由此，`105127.400` 可以说明更长预算和更大并行搜索规模下出现了更短路径，但不能直接说明它优于正式实验中的 `MOVING_HDEA n=6 groups=3`，也不能作为正式实验排序的主结论。
 
-补强实验分组统计如下：
+![补强实验内部 improvement ratio](../results/figures/fig_reproduction_improvement_ratio.png)
+
+补强实验分组统计如下。表中的 improvement ratio 只以补强实验内部的 SERIAL mean `171558.600` 为基线，不以正式实验的 SERIAL mean `438472.100` 为基线。
 
 | algorithm | nproc | groups | best | mean | median | improvement_vs_serial_mean_pct |
 |---|---:|---:|---:|---:|---:|---:|
@@ -369,7 +375,7 @@ reports/06_reproduction_extension.md
 | MOVING_HDEA | 4 | 2 | 106838 | 110460.800 | 108204.000 | 35.613% |
 | MOVING_HDEA | 9 | 3 | 104960 | 106957.000 | 107545.000 | 37.656% |
 
-其中 `HDEA n=9 groups=3` 在补强实验中取得最低 mean `105127.400`。但并行算法之间的 t-test 仍未形成强显著排序，例如 `DEA n=9 vs HDEA n=9 groups=3` 的 `p=0.054057`，接近但未达到 0.05。该结果支持“并行算法相对 SERIAL 明显更好”，但不支持对 DEA/HDEA/MOVING_HDEA 作过强排序。
+其中 `HDEA n=9 groups=3` 在补强实验中取得最低 mean `105127.400`。但并行算法之间的 t-test 仍未形成强显著排序，例如 `DEA n=9 vs HDEA n=9 groups=3` 的 `p=0.054057`，接近但未达到 0.05。该结果支持“在补强实验内部，并行算法相对同预算 SERIAL 更好”这一补充观察，但不支持对 DEA/HDEA/MOVING_HDEA 作过强排序，也不用于推翻正式实验中 `MOVING_HDEA n=6 groups=3` mean 最低的结论。
 
 ### 15.2 运行时间变化
 
@@ -401,9 +407,9 @@ reports/06_reproduction_extension.md
 
 ## 17. 结论
 
-本文完成了基于 MPI 的 TSP 分布式进化算法实验。实现层面，项目保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果显示所有被比较的并行配置相对 SERIAL 均取得显著更低的平均路径长度；补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，进一步支持并行配置在解质量上明显优于 SERIAL。
+本文完成了基于 MPI 的 TSP 分布式进化算法实验。实现层面，项目保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果是本文主结论依据：所有被比较的并行配置相对 SERIAL 均取得显著更低的平均路径长度。补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，作为附录性质证据进一步观察到并行配置相对同预算 SERIAL 的解质量优势，但它不替代正式实验。
 
-本文的最重要结论是：并行/分布式进化结构通过多子种群并行搜索、个体迁移、分层迁移和逻辑子种群移动，能够改善当前 TSP 实验中的搜索质量。正式实验中 `MOVING_HDEA n=6 groups=3` 取得最低 mean `427890.600`；补强实验中 `HDEA n=9 groups=3` 取得最低 mean `105127.400`。但并行算法之间没有稳定显著排序，运行时间也不能表述为稳定加速。
+本文的最重要结论是：并行/分布式进化结构通过多子种群并行搜索、个体迁移、分层迁移和逻辑子种群移动，能够改善当前 TSP 实验中的搜索质量。正式实验中 `MOVING_HDEA n=6 groups=3` 取得最低 mean `427890.600`，这是正式 70 行结果范围内的主排序结论；补强实验中 `HDEA n=9 groups=3` 取得最低 mean `105127.400`，这是不同预算下的附录现象，只说明更长迭代和更大并行搜索规模下可以得到更短路径。并行算法之间没有稳定显著排序，运行时间也不能表述为稳定加速。
 
 因此，本文适合提交的最终表述是：本项目参考论文核心思想完成了 DEA、HDEA 和 ring moving colony HDEA 的 MPI 实现，并通过正式实验、收敛趋势实验和补强实验说明并行进化结构能提升解质量；但当前实验不是论文全部实验的完整复刻，也不是严格固定总计算预算或稳定运行时间加速实验。
 
