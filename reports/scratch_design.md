@@ -43,7 +43,7 @@ Version B 的算法锦标赛尝试了三个候选：
 
 MPI 版本采用 independent multi-start parallel search。每个 rank 读取同一 `data/pcb442.tsp`，使用不同派生 seed 独立运行同一 scratch 算法，然后通过 `MPI_Reduce` 汇总全局最短 `best_length`，并用 `MPI_Reduce` 的 `MPI_MAX` 汇总本次运行的并行 elapsed time。
 
-当前 Version B 没有实现 island exchange。这样做的原因是 trial 已显示独立多启动 2-opt/ILS 已显著超过 Version A 基准，保留简单并行策略更利于说明 Version B 与 Version A 的独立性。
+当前 Version B 没有实现 island exchange。这样做的原因是 trial 已显示独立多启动 2-opt/ILS 能在同一 `pcb442.tsp` 上取得接近 TSPLIB optimum 的解，保留简单并行策略更利于说明 Version B 与 Version A 的独立性。
 
 ## 统一输出字段
 
@@ -60,12 +60,12 @@ algorithm,nproc,mode,seed,time_budget_sec,iteration_budget,best_length,elapsed_s
 - `results/scratch_analysis_summary.csv`
 - `results/scratch_algorithm_trials_summary.txt`
 
-分析脚本 `scripts/analyze_scratch_results.py` 会读取 `results/final_analysis_summary.csv` 中 Version A 的正式基准，并输出：
+分析脚本 `scripts/analyze_scratch_results.py` 会读取 `results/final_analysis_summary.csv` 中 Version A 的正式结果作为上下文参考，但不再输出 “beats Version A” 字段。Version A 与 Version B 算法族、预算和收敛程度不同，不能把该比较写成公平消融。当前输出重点为：
 
-- `beats_version_a_mean`
-- `beats_version_a_best`
-- `mean_improvement_vs_version_a`
-- `best_improvement_vs_version_a`
+- `contextual_reference_version_a_mean`
+- `contextual_reference_version_a_best`
+- `mean_gap_to_tsplib_optimum_pct`
+- `gap_to_tsplib_optimum_pct`
 
 ## 公平性边界
 

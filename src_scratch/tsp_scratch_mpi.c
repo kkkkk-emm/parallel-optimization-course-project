@@ -73,14 +73,14 @@ int main(int argc, char **argv)
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    start = scratch_seconds();
+    start = MPI_Wtime();
     memset(&local_result, 0, sizeof(local_result));
     if (!scratch_run_search(&tsp, algorithm, rank_seed, time_budget_sec, iteration_budget, &local_result)) {
         fprintf(stderr, "[rank %d] scratch search failed\n", rank);
         MPI_Abort(MPI_COMM_WORLD, 1);
         return 1;
     }
-    local_elapsed = scratch_seconds() - start;
+    local_elapsed = MPI_Wtime() - start;
 
     MPI_Reduce(&local_result.best_length, &global_best, 1, MPI_INT, MPI_MIN, 0, MPI_COMM_WORLD);
     MPI_Reduce(&local_elapsed, &elapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);

@@ -4,9 +4,9 @@
 
 本文围绕旅行商问题（Traveling Salesman Problem, TSP）的并行求解展开，最终形成 Version A 和 Version B 两条互补路线。Version A 基于课程提供的原始串行程序 `src/TSP0.C`，在保留原始进化算法核心操作的基础上，新增可复现实验串行版本 `src/tsp_serial_exp.c`，并实现三类 MPI 并行进化算法：分布式进化算法 DEA、普通分层分布式进化算法 HDEA、以及基于 moving colony 思想的 MOVING_HDEA。Version B 则位于 `src_scratch/`，是完全独立实现的 `SCRATCH_ILS_2OPT` 路线，不参考老师代码，也不复制 Version A 的算法实现；它使用独立 parser、整数欧氏距离矩阵、tour 合法性检查、随机贪心初始化、double-bridge perturbation 和 repeated 2-opt 局部搜索。
 
-正式实验使用 `pcb442.tsp`，在 `maxGen=1000`、10 个随机种子、7 组算法配置下得到 70 行结果。统计结果显示，所有被比较的并行配置相对 SERIAL 均取得更低的平均 `global_best`，并且在 Welch t-test 中相对 SERIAL 达到 `p<0.05`。其中 `MOVING_HDEA n=6 groups=3` 的 mean 最低，为 `427890.600`；`DEA n=2` 的单次 best 最低，为 `415765`。但是，MOVING_HDEA 相对 DEA 或 HDEA 的 pairwise 差异未达到 `p<0.05`，因此本文只将其表述为在当前设置下具有均值优势趋势，而不扩大为对其他并行算法的显著优势。
+正式实验使用 `pcb442.tsp`，在 `maxGen=1000`、10 个随机种子、7 组算法配置下得到 70 行结果。统计结果显示，所有被比较的并行配置相对 SERIAL 均取得更低的平均 `global_best`。以 `base_seed` 为配对键的补充统计表明，6 个 SERIAL-vs-parallel 对比的 mean difference 均为正，paired t-test 未校正 `p<0.05`；在 21 个 pairwise 对比上执行 Holm-Bonferroni 校正后，其中 4 个 SERIAL-vs-parallel 对比仍保持 `p<0.05`。Welch t-test 作为敏感性分析时，6 个 SERIAL-vs-parallel 对比均达到 `p<0.05`。其中 `MOVING_HDEA n=6 groups=3` 的 mean 最低，为 `427890.600`；`DEA n=2` 的单次 best 最低，为 `415765`。但是，MOVING_HDEA 相对 DEA 或 HDEA 的 pairwise 差异未形成稳健显著排序，因此本文只将其表述为在当前设置下具有均值优势趋势，而不扩大为对其他并行算法的显著优势。
 
-为增强报告的学术完整性，本文还使用已有 `maxGen` 敏感性实验和新增 `reproduction_extension` 补强实验。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用同一 `pcb442.tsp` 数据集、同一整数欧氏距离矩阵和同一 `global_best` 含义，但参数预算与正式实验不同：`maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和最多 9 个 MPI rank。因此补强实验中 `HDEA n=9 groups=3` 的 mean `105127.400` 只能作为更长搜索预算和更接近论文参数口径下的补充现象，不能与正式实验的 `427890.600` 直接横向比较，也不能替代正式 70 行结果。
+为增强报告的学术完整性，本文还保存并验证 Version A 正式 best tour，新增等预算实验，并使用已有 `maxGen` 敏感性实验和 `reproduction_extension` 补强实验。Version A tour verifier 重新计算 7 个正式配置 best tour，结果为 `VERSION_A_TOUR_VERIFY_OK`、`verified_tours=7`、`best_verified_length=415765`。等预算实验固定总个体数为 100，结果显示 `DEA n=2 local=50` mean 为 `403297.000`，`DEA n=4 local=25` mean 为 `382385.400`，均低于等预算 SERIAL mean `438472.100`，说明并行岛模型不仅受益于每 rank 固定 100 个体的资源扩张，也在固定总种群预算下表现出结构性解质量优势。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用同一 `pcb442.tsp` 数据集、同一整数欧氏距离矩阵和同一 `global_best` 含义，但参数预算与正式实验不同：`maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和最多 9 个 MPI rank。因此补强实验中 `HDEA n=9 groups=3` 的 mean `105127.400` 只能作为更长搜索预算和更接近论文参数口径下的补充现象，不能与正式实验的 `427890.600` 直接横向比较，也不能替代正式 70 行结果。
 
 Version B 正式实验使用 `SCRATCH_ILS_2OPT` 进行 10 seeds 的 serial、MPI n=2、MPI n=4 和 MPI n=6 对照。最佳正式 mean 来自 MPI n=6，为 `52160.600`；最佳单次路径长度为 `51843`。以 TSPLIB official optimum 50778 为参考，Version B best 的 optimality gap 为 `2.10%`，best formal mean 的 mean gap 为 `2.72%`。Version B 与 Version A 不是严格公平消融，因为二者算法族、预算和并行策略不同；Version B 的作用是证明在同一 `pcb442.tsp` 实例上，一个完全独立实现的启发式/元启发式路线可以取得接近最优的高质量解。运行时间方面，本文仍严格区分“解质量提升”和“运行时间变化”，不把不同路线的运行时间差异写成严格 speedup。
 
@@ -192,6 +192,9 @@ mpiexec.exe
 results/final_experiment_results.csv
 results/final_analysis_summary.csv
 results/final_analysis_summary.txt
+results/final_paired_statistics.csv
+results/final_paired_statistics.txt
+results/version_a_best_tours/
 ```
 
 配置如下：
@@ -213,6 +216,32 @@ results/final_analysis_summary.txt
 ```
 
 ### 9.4 补充实验配置
+
+Version A best tour 导出和验证使用：
+
+```text
+scripts/export_version_a_best_tours.ps1
+scripts/verify_version_a_tours.py
+results/version_a_best_tours/
+```
+
+导出脚本不重跑 70 行正式实验，而是从 `results/final_experiment_results.csv` 中为每个正式配置选取 `global_best` 最低的 seed，重跑 7 个 best-seed 配置并保存对应路径。导出时会检查重跑得到的 `global_best` 与正式 CSV 完全一致；验证脚本随后检查每条 tour 是 442 城市排列，并重新计算闭环路径长度。
+
+新增等预算实验写入：
+
+```text
+results/equal_budget_results.csv
+results/equal_budget_summary.csv
+results/equal_budget_summary.txt
+```
+
+该实验固定总个体数为 100，用于区分 resource scaling benefit 与 algorithmic benefit：
+
+| algorithm | nproc | local_colony_size | total_colony_size | maxGen | seeds |
+|---|---:|---:|---:|---:|---:|
+| SERIAL | 1 | 100 | 100 | 1000 | 10 |
+| DEA | 2 | 50 | 100 | 1000 | 10 |
+| DEA | 4 | 25 | 100 | 1000 | 10 |
 
 已有 `maxGen` 敏感性实验比较 `maxGen=1000,3000,5000` 下的 SERIAL、DEA n=4、HDEA n=4 groups=2、MOVING_HDEA n=4 groups=2，每组 3 个 seed，共 36 行结果。
 
@@ -243,7 +272,11 @@ reports/06_reproduction_extension.md
 | `avg_time` | 平均运行时间 | 越低越快，但不能单独代表算法质量 |
 | `time_median` | 运行时间中位数，补强实验中使用 | 越低越快 |
 | improvement ratio | 相对 SERIAL mean 的改善比例 | 越高表示解质量提升越大 |
-| Welch t-test | 比较两组 `global_best` 均值差异 | `p<0.05` 视为显著 |
+| paired t-test | 以 `base_seed` 为配对键比较 `global_best` | 作为正式统计主口径 |
+| Wilcoxon signed-rank | 配对非参数检验 | 作为 paired t-test 的稳健性补充 |
+| Holm-Bonferroni | 对多重 pairwise 检验校正 | 校正后 `p<0.05` 更稳健 |
+| Cohen's dz | 配对效应量 | 反映配对差异大小 |
+| Welch t-test | 不配对均值检验 | 保留为敏感性分析，不作为唯一证据 |
 | effect size | 补强实验中的 Hedges g | 表示差异大小与方向 |
 | confidence interval | 均值差 95% 置信区间 | 判断差异范围 |
 | success rate | 低于 SERIAL median / best 的次数 | 越高越好 |
@@ -287,26 +320,26 @@ reports/06_reproduction_extension.md
 
 图 5 给出正式实验中各配置相对 SERIAL mean 的 improvement ratio。该图强调的是解质量改善，而不是运行时间加速。
 
-### 11.2 Welch t-test 结果
+### 11.2 配对统计与 Welch 敏感性分析
 
-正式实验中，所有并行配置相对 SERIAL 均达到显著性：
+正式实验使用同一组 `base_seed` 运行各配置，因此新增 `scripts/analyze_paired_statistics.py` 以 `base_seed` 为配对键，输出 `results/final_paired_statistics.csv/txt`。该分析同时给出 paired t-test、Wilcoxon signed-rank、mean difference 的 95% CI、Cohen's dz，并对 paired t-test 的全部 21 个 pairwise p-value 执行 Holm-Bonferroni 校正。mean difference 定义为左侧配置 `global_best` 减右侧配置 `global_best`，正数表示右侧配置路径更短。
 
-| comparison | p-value | 结论 |
-|---|---:|---|
-| SERIAL n=1 vs DEA n=2 | 0.003512 | DEA n=2 mean 更低，差异显著 |
-| SERIAL n=1 vs DEA n=4 | 0.000435 | DEA n=4 mean 更低，差异显著 |
-| SERIAL n=1 vs HDEA n=4 groups=2 | 0.002782 | HDEA n=4 mean 更低，差异显著 |
-| SERIAL n=1 vs HDEA n=6 groups=3 | 0.000242 | HDEA n=6 mean 更低，差异显著 |
-| SERIAL n=1 vs MOVING_HDEA n=4 groups=2 | 0.000218 | MOVING_HDEA n=4 mean 更低，差异显著 |
-| SERIAL n=1 vs MOVING_HDEA n=6 groups=3 | 0.000022 | MOVING_HDEA n=6 mean 更低，差异显著 |
+SERIAL 与并行配置的配对结果如下：
 
-其中 `SERIAL n=1 vs MOVING_HDEA n=6 groups=3` 的 `p=0.000022` 是正式实验中最强的 SERIAL 对比证据之一。但是，并行算法之间的 pairwise 比较并未形成显著排序。例如 `DEA n=4 vs MOVING_HDEA n=4 groups=2` 的 `p=0.647810`，说明 MOVING_HDEA n=4 虽然 mean 更低，但差异远未达到 0.05 显著性水平。`HDEA n=6 groups=3 vs MOVING_HDEA n=6 groups=3` 的 `p=0.085502` 也未达到 0.05。
+| comparison | mean_diff | 95% CI | paired t p | Wilcoxon p | Holm p | Cohen's dz |
+|---|---:|---|---:|---:|---:|---:|
+| SERIAL n=1 vs DEA n=2 | 8248.500 | [3584.107, 12912.893] | 0.003109 | 0.003906 | 0.052846 | 1.265035 |
+| SERIAL n=1 vs DEA n=4 | 8014.100 | [3691.372, 12336.828] | 0.002328 | 0.001953 | 0.041896 | 1.326232 |
+| SERIAL n=1 vs HDEA n=4 groups=2 | 6898.400 | [2581.169, 11215.631] | 0.005618 | 0.013672 | 0.089895 | 1.143052 |
+| SERIAL n=1 vs HDEA n=6 groups=3 | 8151.200 | [4706.021, 11596.379] | 0.000461 | 0.001953 | 0.009681 | 1.692515 |
+| SERIAL n=1 vs MOVING_HDEA n=4 groups=2 | 8768.100 | [4719.893, 12816.307] | 0.000848 | 0.001953 | 0.016113 | 1.549407 |
+| SERIAL n=1 vs MOVING_HDEA n=6 groups=3 | 10581.500 | [6045.577, 15117.423] | 0.000509 | 0.001953 | 0.010180 | 1.668800 |
 
-因此，正式实验可以支持以下结论：
+这组结果支持一个更精确的结论：所有并行配置相对 SERIAL 的配对 mean difference 均为正，95% CI 均不跨 0，Wilcoxon p-value 均小于 0.05；在 21 个 pairwise 对比的 Holm-Bonferroni 校正下，`DEA n=4`、`HDEA n=6 groups=3`、`MOVING_HDEA n=4 groups=2` 和 `MOVING_HDEA n=6 groups=3` 相对 SERIAL 仍保持 `p<0.05`，而 `DEA n=2` 与 `HDEA n=4 groups=2` 的 Holm p-value 分别为 `0.052846` 和 `0.089895`，应表述为配对差异方向稳定、未校正检验显著，但在全 pairwise Holm 校正后没有达到 0.05。
 
-1. 所有被比较的并行配置相对 SERIAL 显著改善解质量。
-2. MOVING_HDEA n=6 在正式实验中取得最低 mean。
-3. MOVING_HDEA 相对 DEA/HDEA 的优势只能表述为均值趋势，不能扩大为显著性结论。
+原有 Welch t-test 结果仍作为敏感性分析保留。Welch 口径下，6 个 SERIAL-vs-parallel 对比均达到 `p<0.05`，其中 `SERIAL n=1 vs MOVING_HDEA n=6 groups=3` 的 `p=0.000022` 是最强的 SERIAL 对比之一。但是，Welch 不利用 seed 配对结构，因此不能作为唯一统计证据。
+
+并行算法之间的 pairwise 比较仍未形成显著排序。例如 paired 分析中 `HDEA n=6 groups=3 vs MOVING_HDEA n=6 groups=3` 的 mean difference 为 `2430.300`，但 95% CI 为 `[-409.454, 5270.054]`，Holm p-value 为 `1.000000`；原 Welch 口径下同一比较的 `p=0.085502` 也未达到 `0.05`。因此，正式实验可以支持“并行进化结构相对 SERIAL 改善解质量”，但不能把 MOVING_HDEA 写成显著优于 DEA/HDEA。
 
 ## 12. 收敛趋势与参数敏感性分析
 
@@ -360,9 +393,23 @@ reports/06_reproduction_extension.md
 
 ### 15.1 解质量提升
 
-正式实验是本文主结论的主要依据。正式实验中，所有并行配置相对 SERIAL 的 mean 更低且 Welch t-test 显著，因此可以写作“在正式实验设置下，并行进化结构相对串行基线改善了解质量”。补强实验只作为附录性质的复现性检查：在 `maxGen=5000`、5 seed、更频繁迁移和更多 rank 的设置下，所有并行配置的 mean、median 均低于该补强实验内部的 SERIAL baseline，且所有并行配置 5 次运行均低于补强实验内部 SERIAL best。
+正式实验是本文主结论的主要依据。正式实验中，所有并行配置相对 SERIAL 的 mean 更低；配对统计显示 6 个 SERIAL-vs-parallel 对比的 mean difference 均为正，95% CI 均不跨 0。Holm-Bonferroni 校正后，4 个 SERIAL-vs-parallel 对比仍保持 `p<0.05`，另外 2 个对比在未校正 paired t-test 和 Wilcoxon 检验中达到 `p<0.05`，但应谨慎表述。更稳妥的写法是：“在正式实验设置下，并行进化结构相对串行基线表现出稳定的解质量改善；其中多数组合在多重校正后仍有统计支持。”补强实验只作为附录性质的复现性检查：在 `maxGen=5000`、5 seed、更频繁迁移和更多 rank 的设置下，所有并行配置的 mean、median 均低于该补强实验内部的 SERIAL baseline，且所有并行配置 5 次运行均低于补强实验内部 SERIAL best。
+
+Version A 的正式 best tour 已保存并独立验证。`scripts/export_version_a_best_tours.ps1` 从正式 70 行结果中为 7 个配置选择 best seed，输出到 `results/version_a_best_tours/`；`scripts/verify_version_a_tours.py` 重新读取 `pcb442.tsp`，验证每条 tour 都包含 442 个城市且不重复，并重新计算闭环长度。当前结果为 `VERSION_A_TOUR_VERIFY_OK`、`verified_tours=7`、`best_verified_length=415765`。这补上了 Version A 过去只有 `global_best` 而没有路径证据的缺口。
+
+等预算实验进一步区分了“资源扩张收益”和“算法结构收益”。正式实验和补强实验默认每个 MPI rank 都维护 `N_COLONY=100`，因此 nproc 增加时总个体数同步增加；等预算实验则固定总个体数为 100，使用 SERIAL local=100、DEA n=2 local=50、DEA n=4 local=25。结果如下：
+
+| setting | total_colony_size | mean | best | improvement_vs_serial_mean |
+|---|---:|---:|---:|---:|
+| SERIAL n=1 local=100 | 100 | 438472.100 | 430142 | 0.000% |
+| DEA n=2 local=50 | 100 | 403297.000 | 398962 | 8.022% |
+| DEA n=4 local=25 | 100 | 382385.400 | 376484 | 12.791% |
+
+因此，当前证据不只来自“并行后总个体数更多”的 scale-out 设置；在固定总个体数下，DEA 的多岛迁移结构仍相对 SERIAL 获得更低 mean。该实验只覆盖 DEA，不替代正式 70 行实验，也不直接推广到 HDEA/MOVING_HDEA。
 
 量级差异需要单独解释。正式实验的最低 mean 为 `MOVING_HDEA n=6 groups=3` 的 `427890.600`，补强实验的最低 mean 为 `HDEA n=9 groups=3` 的 `105127.400`。这两个数字使用同一数据集、同一路径长度计算方式和同一 `global_best` 字段含义，但不处在同一实验预算下：补强实验的 `maxGen` 是正式实验的 5 倍，迁移间隔从 100 降到 25，HDEA 的 `local_to_global_ratio` 从 5 改为 20，并新增 n=9、groups=3 配置。并且每个 MPI rank 都维护 `N_COLONY=100`，所以 n=9 配置对应 900 个并行子种群个体，而 SERIAL 只有 100 个体。由此，`105127.400` 可以说明更长预算和更大并行搜索规模下出现了更短路径，但不能直接说明它优于正式实验中的 `MOVING_HDEA n=6 groups=3`，也不能作为正式实验排序的主结论。
+
+为避免误读，这个 10 万量级结果不是由数据集、距离单位或输出字段变化造成的。正式实验和补强实验都由 `src/tsp_serial_exp.c`、`src/tsp_mpi_dea.c`、`src/tsp_mpi_hdea.c` 和 `src/tsp_mpi_moving_hdea.c` 读取 `data/pcb442.tsp`，并使用 `(int)(sqrt(dx^2+dy^2)+0.5)` 构造整数欧氏距离矩阵。需要注意的是，结果 CSV 本身不保存 `input_path` 字段，因此数据集一致性的判断来自实验脚本默认参数、补强实验报告和源码读取链路，而不是单行 CSV 的自描述元数据。两个实验链路的统一 CSV schema 都包含 `algorithm,nproc,maxGen,migration_interval,local_to_global_ratio,num_groups,base_seed,global_best,elapsed_sec`；其中 SERIAL 的 `global_best` 是最终本地 `sumbest`，MPI 配置的 `global_best` 是 rank 0 汇总各 rank 最终 `sumbest` 后得到的最小值。因此，补强实验只能在其自身 `maxGen=5000`、5 seed、n=4/n=9 的设置内与同预算 SERIAL baseline 比较，不能横向替代正式 `maxGen=1000`、10 seed 的 70 行实验。
 
 ![补强实验内部 improvement ratio](../results/figures/fig_reproduction_improvement_ratio.png)
 
@@ -382,7 +429,7 @@ reports/06_reproduction_extension.md
 
 ### 15.2 运行时间变化
 
-运行时间结论必须谨慎。正式实验中，SERIAL 的 `avg_time=2.868900`，所有并行配置的 `avg_time` 均更高。补强实验中，n=4 并行配置的平均时间低于 SERIAL，但 n=9 配置接近或高于 SERIAL。由于补强实验每组只有 5 个 seed，且运行环境是单机 Windows/MS-MPI，不宜将时间结果推广为稳定加速结论。
+运行时间结论必须谨慎。正式实验中，SERIAL 的 `avg_time=2.868900`，所有并行配置的 `avg_time` 均更高。补强实验中，n=4 并行配置的平均时间低于 SERIAL，但 n=9 配置接近或高于 SERIAL。等预算实验中 DEA n=2/n=4 的平均时间低于 SERIAL，但该结果来自新的 wall-clock 计时和关闭默认迁移日志后的补充链路，只能在等预算实验内部解释，不能反向改写旧正式实验的时间结论。
 
 当前运行时间不稳定的原因包括：
 
@@ -392,7 +439,9 @@ reports/06_reproduction_extension.md
 4. 实验规模较小，通信和启动开销占比相对明显。
 5. 当前算法主要改变搜索结构，不是固定总评价次数下的纯时间优化。
 
-因此，本文最稳妥的结论是：MPI 并行进化结构显著改善了解质量；运行时间方面没有足够证据支持稳定加速表述。
+当前源码已经统一计时口径：MPI 程序使用 `MPI_Wtime()`，非 MPI 实验入口使用 Windows `QueryPerformanceCounter` 或 POSIX `clock_gettime(CLOCK_MONOTONIC)`；计时区间从读取输入、构造距离矩阵和初始化种群开始，覆盖演化和迁移过程，但不把最终 CSV/tour 写入作为核心搜索时间。MPI 迁移日志默认关闭，只有传入 `--log-migration` 时才输出；初始化和调试信息由 `--verbose` 控制。
+
+因此，本文最稳妥的结论是：MPI 并行进化结构改善了解质量；运行时间方面没有足够证据支持稳定加速表述。
 
 ## 16. Version B：完全独立实现的 SCRATCH_ILS_2OPT 路线
 
@@ -467,7 +516,7 @@ results/scratch_best_tours/best_SCRATCH_ILS_2OPT_mpi_n6.tour
 本文实验存在以下局限：
 
 1. 数据集单一。所有正式结论都基于 `pcb442.tsp`，不能直接推广到全部 TSPLIB 实例。
-2. 总计算预算不严格公平。Version A 并行配置每个 rank 都有 100 个体，nproc 越大总个体数越大；Version B MPI 配置通过更多 rank 获得更多 independent starts。
+2. 主正式实验不是固定总计算预算。Version A 正式并行配置每个 rank 都有 100 个体，nproc 越大总个体数越大；本文已用 DEA 等预算实验补充固定总个体数证据，但该补充尚未覆盖 HDEA/MOVING_HDEA。
 3. 样本量有限。Version A 正式实验每组 10 seeds，补强实验每组 5 seeds；Version B 正式实验每组 10 seeds，仍不足以支撑发表级统计结论。
 4. 参数搜索不足。Version A 的迁移间隔、group 数量、local/global 轮次比、moving position 策略没有系统搜索；Version B 的 perturbation 强度、candidate list、3-opt/LK-lite 等方向也未完全展开。
 5. 拓扑不完整。当前 Version A 未实现 random individual HDEA 和 random colony HDEA；Version B MPI 版本未实现 island exchange。
@@ -478,11 +527,11 @@ results/scratch_best_tours/best_SCRATCH_ILS_2OPT_mpi_n6.tour
 
 ## 19. 结论
 
-本文完成了基于 MPI 的 TSP 双路线综合实验。Version A 保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果是 Version A 主结论依据：所有被比较的并行配置相对 SERIAL 均取得显著更低的平均路径长度。补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，作为附录性质证据进一步观察到并行配置相对同预算 SERIAL 的解质量优势，但它不替代正式实验。
+本文完成了基于 MPI 的 TSP 双路线综合实验。Version A 保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果是 Version A 主结论依据：所有被比较的并行配置相对 SERIAL 均取得更低的平均路径长度；配对统计显示 6 个 SERIAL-vs-parallel 对比方向一致，4 个对比在全 pairwise Holm-Bonferroni 校正后仍达到 `p<0.05`。Version A 还补充保存了 7 个正式配置的 best tour，并通过独立 verifier 复算长度。等预算实验固定总个体数为 100，观察到 DEA n=2 和 DEA n=4 相对 SERIAL 仍有更低 mean，补强了算法结构收益证据。复现性补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，作为附录性质证据进一步观察到并行配置相对同预算 SERIAL 的解质量优势，但它不替代正式实验。
 
 Version B 则提供了完全独立实现的第二条路线。`SCRATCH_ILS_2OPT` 使用独立 parser、距离矩阵、tour 校验、2-opt 和 ILS 搜索，在同一 `pcb442.tsp` 上得到 best `51843` 和 best formal mean `52160.600`。以 TSPLIB official optimum 50778 为参考，Version B 的 best gap 为 `2.10%`，mean gap 为 `2.72%`，说明该独立实现已经取得接近最优的高质量解。
 
-本文的最终综合表述是：Version A 完成参考代码并行化和分层迁移机制验证；Version B 在同一 `pcb442.tsp` 实例上取得接近最优的高质量解；两条路线共同满足“复现/改造”和“独立实现”的课程要求。与此同时，本文不声称完全复现论文，不声称 Version A 并行算法之间已经形成显著排序，不声称 MPI 运行时间显著加速，也不把 Version B 作为 Version A 的严格公平消融。
+本文的最终综合表述是：Version A 完成参考代码并行化和分层迁移机制验证；Version B 在同一 `pcb442.tsp` 实例上取得接近最优的高质量解；两条路线共同满足“复现/改造”和“独立实现”的课程要求。与此同时，本文只主张缩小版机制复现，不宣称已经覆盖论文全部实验；Version A 并行算法之间尚未形成显著排序；运行时间方面也没有稳定显著加速证据；Version B 不作为 Version A 的严格公平消融。
 
 ## 参考文献
 
@@ -503,6 +552,16 @@ Version B 则提供了完全独立实现的第二条路线。`SCRATCH_ILS_2OPT` 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_experiments_final.ps1
 python .\scripts\analyze_results_final.py .\results\final_experiment_results.csv
+python .\scripts\analyze_paired_statistics.py .\results\final_experiment_results.csv
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\export_version_a_best_tours.ps1
+python .\scripts\verify_version_a_tours.py
+```
+
+等预算实验：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_equal_budget_experiment.ps1
+python .\scripts\analyze_equal_budget.py .\results\equal_budget_results.csv
 ```
 
 收敛趋势实验：
@@ -536,7 +595,7 @@ python .\scripts\generate_report_figures.py
 验证：
 
 ```powershell
-python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py
+python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py tests/test_version_a_improvement_outputs.py tests/test_version_a_algorithm_smoke.py
 Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\final_analysis_summary.txt,results\final_analysis_summary.csv
 ```
 
@@ -554,6 +613,11 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 | `src_scratch/tsp_scratch_mpi.c` | Version B MPI multi-start scratch 入口 |
 | `scripts/run_experiments_final.ps1` | 正式实验脚本 |
 | `scripts/analyze_results_final.py` | 正式实验分析脚本 |
+| `scripts/analyze_paired_statistics.py` | 正式实验配对统计分析脚本 |
+| `scripts/export_version_a_best_tours.ps1` | Version A 正式 best tour 导出脚本 |
+| `scripts/verify_version_a_tours.py` | Version A best tour 合法性验证脚本 |
+| `scripts/run_equal_budget_experiment.ps1` | 固定总种群规模等预算实验脚本 |
+| `scripts/analyze_equal_budget.py` | 等预算实验分析脚本 |
 | `scripts/run_convergence_sensitivity.ps1` | 收敛趋势实验脚本 |
 | `scripts/analyze_convergence_sensitivity.py` | 收敛趋势分析脚本 |
 | `scripts/run_reproduction_extension.ps1` | 复现性补强实验脚本 |
@@ -565,6 +629,10 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 | `scripts/generate_report_figures.py` | 图表生成脚本 |
 | `results/final_experiment_results.csv` | 正式实验原始结果 |
 | `results/final_analysis_summary.csv` | 正式实验统计结果 |
+| `results/final_paired_statistics.csv` | 正式实验配对统计结果 |
+| `results/version_a_best_tours/` | Version A 各正式配置 best tour |
+| `results/equal_budget_results.csv` | 等预算实验原始结果 |
+| `results/equal_budget_summary.csv` | 等预算实验统计摘要 |
 | `results/convergence_sensitivity_results.csv` | 收敛趋势实验原始结果 |
 | `results/reproduction_extension_results.csv` | 补强实验原始结果 |
 | `results/scratch_algorithm_trials.csv` | Version B trial 原始结果 |
@@ -584,10 +652,13 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 1. 确认 `src/TSP0.C` 未被修改。
 2. 运行正式实验脚本，得到 `results/final_experiment_results.csv`。
 3. 运行正式分析脚本，得到 `results/final_analysis_summary.csv/txt`。
-4. 运行收敛趋势实验和分析脚本，得到 `results/convergence_sensitivity_*`。
-5. 运行复现性补强实验和分析脚本，得到 `results/reproduction_extension_*`。
-6. 运行 Version B trial 和正式实验脚本，得到 `results/scratch_*`。
-7. 运行 `scripts/verify_scratch_tours.py`，验证 `results/scratch_best_tours/` 中每条 best tour 的合法性和长度一致性。
-8. 运行 `scripts/generate_report_figures.py`，将图片写入 `results/figures/`。
-9. 运行 pytest 验证报告、图表和结果文件完整性。
-10. 使用 SHA256 核对 `final_*` 正式结果没有被误改。
+4. 运行 `scripts/analyze_paired_statistics.py`，得到 `results/final_paired_statistics.csv/txt`。
+5. 运行 `scripts/export_version_a_best_tours.ps1` 和 `scripts/verify_version_a_tours.py`，验证 Version A best tour。
+6. 运行等预算实验和分析脚本，得到 `results/equal_budget_*`。
+7. 运行收敛趋势实验和分析脚本，得到 `results/convergence_sensitivity_*`。
+8. 运行复现性补强实验和分析脚本，得到 `results/reproduction_extension_*`。
+9. 运行 Version B trial 和正式实验脚本，得到 `results/scratch_*`。
+10. 运行 `scripts/verify_scratch_tours.py`，验证 `results/scratch_best_tours/` 中每条 best tour 的合法性和长度一致性。
+11. 运行 `scripts/generate_report_figures.py`，将图片写入 `results/figures/`。
+12. 运行 pytest 验证报告、图表和结果文件完整性。
+13. 使用 SHA256 核对 `final_*` 正式结果没有被误改。

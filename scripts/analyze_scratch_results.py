@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION_A_SUMMARY = ROOT / "results" / "final_analysis_summary.csv"
 VERSION_A_MEAN_FALLBACK = 427890.600
 VERSION_A_BEST_FALLBACK = 415765.0
+TSPLIB_PCB442_OPTIMUM = 50778.0
 
 REQUIRED_COLUMNS = {
     "algorithm",
@@ -116,10 +117,10 @@ def summarize(rows, version_a_mean, version_a_best):
                 "max": max(values),
                 "avg_time": statistics.mean(times),
                 "time_median": statistics.median(times),
-                "beats_version_a_mean": "yes" if mean_value < version_a_mean else "no",
-                "beats_version_a_best": "yes" if best_value < version_a_best else "no",
-                "mean_improvement_vs_version_a": (version_a_mean - mean_value) / version_a_mean * 100.0,
-                "best_improvement_vs_version_a": (version_a_best - best_value) / version_a_best * 100.0,
+                "contextual_reference_version_a_mean": version_a_mean,
+                "contextual_reference_version_a_best": version_a_best,
+                "mean_gap_to_tsplib_optimum_pct": (mean_value - TSPLIB_PCB442_OPTIMUM) / TSPLIB_PCB442_OPTIMUM * 100.0,
+                "gap_to_tsplib_optimum_pct": (best_value - TSPLIB_PCB442_OPTIMUM) / TSPLIB_PCB442_OPTIMUM * 100.0,
             }
         )
     return summaries
@@ -148,10 +149,10 @@ def write_summary_csv(path, summaries):
         "max",
         "avg_time",
         "time_median",
-        "beats_version_a_mean",
-        "beats_version_a_best",
-        "mean_improvement_vs_version_a",
-        "best_improvement_vs_version_a",
+        "contextual_reference_version_a_mean",
+        "contextual_reference_version_a_best",
+        "mean_gap_to_tsplib_optimum_pct",
+        "gap_to_tsplib_optimum_pct",
     ]
     with Path(path).open("w", newline="", encoding="utf-8") as fp:
         writer = csv.DictWriter(fp, fieldnames=fieldnames)
@@ -175,9 +176,13 @@ def markdown_table(headers, rows):
 
 def write_summary_txt(path, summaries, version_a_mean, version_a_best):
     lines = [
-        "Version A baseline",
+        "Version A contextual reference",
         f"- best formal mean: {version_a_mean:.3f}",
         f"- best single run: {version_a_best:.0f}",
+        "- not a fair ablation baseline for Version B",
+        "",
+        "TSPLIB optimum",
+        f"- pcb442 official optimum: {TSPLIB_PCB442_OPTIMUM:.0f}",
         "",
         "Scratch grouped statistics",
     ]
@@ -192,10 +197,10 @@ def write_summary_txt(path, summaries, version_a_mean, version_a_best):
                 "mean",
                 "std",
                 "avg_time",
-                "beats_version_a_mean",
-                "beats_version_a_best",
-                "mean_improvement_vs_version_a",
-                "best_improvement_vs_version_a",
+                "version_a_mean_ref",
+                "version_a_best_ref",
+                "mean_gap_to_optimum",
+                "best_gap_to_optimum",
             ],
             [
                 [
@@ -207,10 +212,10 @@ def write_summary_txt(path, summaries, version_a_mean, version_a_best):
                     f"{row['mean']:.3f}",
                     f"{row['std']:.3f}",
                     f"{row['avg_time']:.6f}",
-                    row["beats_version_a_mean"],
-                    row["beats_version_a_best"],
-                    f"{row['mean_improvement_vs_version_a']:.3f}%",
-                    f"{row['best_improvement_vs_version_a']:.3f}%",
+                    f"{row['contextual_reference_version_a_mean']:.3f}",
+                    f"{row['contextual_reference_version_a_best']:.0f}",
+                    f"{row['mean_gap_to_tsplib_optimum_pct']:.3f}%",
+                    f"{row['gap_to_tsplib_optimum_pct']:.3f}%",
                 ]
                 for row in summaries
             ],

@@ -28,13 +28,15 @@ double dis_p[N_COLONY * 2];
 double sumbest, sumTemp;
 double worstDistance;
 int temp[CITY], ibest, iworst;
-clock_t timeStart, timeNow, timeTemp;
 long GenNum, Ni;
 
 static const char *inputPath = "data/pcb442.tsp";
 static const char *outputPath = "results/moving_hdea_result.csv";
+static const char *tourOutputPath = NULL;
 static int mpiRank = 0;
 static int mpiSize = 1;
+static int verbose = 0;
+static int logMigration = 0;
 static int groupId = 0;
 static int localId = 0;
 static int subpopsPerGroup = 0;
@@ -48,6 +50,8 @@ static int parse_positive_int(const char *text, const char *name);
 static unsigned long parse_seed(const char *text, const char *name);
 static void usage(const char *program);
 static int validate_hdea_config(void);
+static void configure_logging_from_env(void);
+static void apply_runtime_flag(const char *flag);
 static void fail_all(const char *message);
 static void fail_all_errno(const char *path);
 static void init(void);
@@ -68,13 +72,15 @@ static void print_local_migration_plan(void);
 static void move_colony_ring(void);
 static int file_has_content(const char *path);
 static void append_csv(double globalBest, double elapsedSec);
+static void write_tour_file(const char *path, const int route[], double bestLength, int bestRank);
 
 int main(int argc, char **argv)
 {
     double startTime, localElapsed, elapsedSec = 0.0;
     double *allBest = NULL;
+    int *allTours = NULL;
     double globalBest = 0.0;
-    int i;
+    int i, bestRank = 0;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &mpiRank);
@@ -98,13 +104,14 @@ int main(int argc, char **argv)
                numGroups, subpopsPerGroup, maxGen, localMigrationInterval,
                localToGlobalRatio, baseSeed, outputPath);
         printf("input=%s\n", inputPath);
-        print_group_members("initial group_members");
+        if (verbose || logMigration) {
+            print_group_members("initial group_members");
+        }
         fflush(stdout);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
     startTime = MPI_Wtime();
-    timeStart = timeNow = timeTemp = clock();
 
     init();
 
@@ -119,18 +126,21 @@ int main(int argc, char **argv)
         }
     }
 
-    printf("[rank %d] final local best: %.0f\n", mpiRank, sumbest);
-    fflush(stdout);
-
     localElapsed = MPI_Wtime() - startTime;
+    if (verbose) {
+        printf("[rank %d] final local best: %.0f\n", mpiRank, sumbest);
+        fflush(stdout);
+    }
     if (mpiRank == 0) {
         allBest = (double *)malloc(sizeof(double) * (size_t)mpiSize);
-        if (allBest == NULL) {
+        allTours = (int *)malloc(sizeof(int) * (size_t)mpiSize * (size_t)xCity);
+        if (allBest == NULL || allTours == NULL) {
             fail_all("Failed to allocate gather buffer");
         }
     }
 
     MPI_Gather(&sumbest, 1, MPI_DOUBLE, allBest, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Gather(&colony[ibest][0], xCity, MPI_INT, allTours, xCity, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Reduce(&localElapsed, &elapsedSec, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (mpiRank == 0) {
@@ -138,6 +148,7 @@ int main(int argc, char **argv)
         for (i = 1; i < mpiSize; i++) {
             if (allBest[i] < globalBest) {
                 globalBest = allBest[i];
+                bestRank = i;
             }
         }
 
@@ -145,7 +156,11 @@ int main(int argc, char **argv)
         printf("[rank 0] elapsed time: %.6f sec\n", elapsedSec);
         fflush(stdout);
         append_csv(globalBest, elapsedSec);
+        if (tourOutputPath != NULL && tourOutputPath[0] != '\0') {
+            write_tour_file(tourOutputPath, allTours + ((size_t)bestRank * (size_t)xCity), globalBest, bestRank);
+        }
         free(allBest);
+        free(allTours);
     }
 
     free(groupMembers);
@@ -155,6 +170,8 @@ int main(int argc, char **argv)
 
 static void configure(int argc, char **argv)
 {
+    int argi;
+    configure_logging_from_env();
     if (argc > 1) {
         inputPath = argv[1];
     }
@@ -176,11 +193,17 @@ static void configure(int argc, char **argv)
     if (argc > 7) {
         outputPath = argv[7];
     }
-    if (argc > 8) {
-        if (mpiRank == 0) {
-            usage(argv[0]);
-        }
-        fail_all("Too many command line arguments");
+    argi = 8;
+    if (argi < argc && argv[argi][0] != '-') {
+        xColony = parse_positive_int(argv[argi], "local_colony_size");
+        argi++;
+    }
+    if (argi < argc && argv[argi][0] != '-') {
+        tourOutputPath = argv[argi];
+        argi++;
+    }
+    for (; argi < argc; argi++) {
+        apply_runtime_flag(argv[argi]);
     }
 }
 
@@ -235,8 +258,34 @@ static unsigned long parse_seed(const char *text, const char *name)
 static void usage(const char *program)
 {
     fprintf(stderr,
-            "Usage: %s [input.tsp] [maxGen] [local_migration_interval] [local_to_global_ratio] [num_groups] [base_seed] [output.csv]\n",
+            "Usage: %s [input.tsp] [maxGen] [local_migration_interval] [local_to_global_ratio] [num_groups] [base_seed] [output.csv] [local_colony_size] [tour_output] [--verbose] [--log-migration]\n",
             program);
+}
+
+static void configure_logging_from_env(void)
+{
+    const char *verboseEnv = getenv("TSP_VERBOSE");
+    const char *migrationEnv = getenv("TSP_LOG_MIGRATION");
+    verbose = (verboseEnv != NULL && strcmp(verboseEnv, "0") != 0 && strcmp(verboseEnv, "") != 0);
+    logMigration = (migrationEnv != NULL && strcmp(migrationEnv, "0") != 0 && strcmp(migrationEnv, "") != 0);
+}
+
+static void apply_runtime_flag(const char *flag)
+{
+    if (strcmp(flag, "--verbose") == 0) {
+        verbose = 1;
+    } else if (strcmp(flag, "--log-migration") == 0) {
+        logMigration = 1;
+    } else if (strcmp(flag, "--quiet") == 0) {
+        verbose = 0;
+        logMigration = 0;
+    } else {
+        if (mpiRank == 0) {
+            fprintf(stderr, "Unknown option: %s\n", flag);
+            usage("tsp_mpi_moving_hdea");
+        }
+        fail_all("Unknown command line option");
+    }
 }
 
 static int validate_hdea_config(void)
@@ -338,7 +387,7 @@ static void init(void)
     }
     fclose(fp);
 
-    {
+    if (verbose) {
         int logicalGroup, logicalPos;
         find_logical_position(mpiRank, &logicalGroup, &logicalPos);
         printf("[rank %d] initial logical_group=%d logical_pos=%d physical_group=%d physical_local_id=%d read %d cities from %s\n",
@@ -362,7 +411,9 @@ static void init(void)
             }
         }
     }
-    printf("[rank %d] distance matrix initialized\n", mpiRank);
+    if (verbose) {
+        printf("[rank %d] distance matrix initialized\n", mpiRank);
+    }
 
     mod = xCity;
     for (i = 0; i < xCity; i++) {
@@ -382,7 +433,9 @@ static void init(void)
             }
         }
     }
-    printf("[rank %d] colony initialized: %d individuals\n", mpiRank, xColony);
+    if (verbose) {
+        printf("[rank %d] colony initialized: %d individuals\n", mpiRank, xColony);
+    }
 
     for (i = 0; i < xColony; i++) {
         dis_p[i] = compute_path_length(colony[i]);
@@ -392,13 +445,13 @@ static void init(void)
     sumTemp = sumbest * 5;
     GenNum = 0;
     Ni = 0;
-    {
+    if (verbose) {
         int logicalGroup, logicalPos;
         find_logical_position(mpiRank, &logicalGroup, &logicalPos);
         printf("[rank %d] initial logical_group=%d logical_pos=%d initial best: %.0f (individual %d, seed=%lu)\n",
                mpiRank, logicalGroup, logicalPos, sumbest, ibest, rankSeed);
+        fflush(stdout);
     }
-    fflush(stdout);
 }
 
 static void evolve_one_generation(void)
@@ -416,7 +469,7 @@ static void evolve_one_generation(void)
         pos_C = rand() % xCity;
 
         for (;;) {
-            if ((rand() / 32768.0) < probab1) {
+            if (((double)rand() / ((double)RAND_MAX + 1.0)) < probab1) {
                 do {
                     pos_C1 = rand() % xCity;
                 } while (pos_C1 == pos_C);
@@ -491,14 +544,14 @@ static void migrate_individual(const char *label, int sendTo, int recvFrom, int 
     dis_p[iworst] = receivedDistance;
     update_best_worst();
 
-    {
+    if (logMigration) {
         int logicalGroup, logicalPos;
         find_logical_position(mpiRank, &logicalGroup, &logicalPos);
         printf("[rank %d] %s migration generation %ld: logical_group=%d logical_pos=%d sent best %.0f to %d, received %.0f from %d, replaced %.0f\n",
                mpiRank, label, GenNum, logicalGroup, logicalPos, sentDistance,
                sendTo, receivedDistance, recvFrom, replacedDistance);
+        fflush(stdout);
     }
-    fflush(stdout);
 }
 
 static void migrate_local_ring(void)
@@ -507,7 +560,9 @@ static void migrate_local_ring(void)
     int sendPos, recvPos;
     int localSendTo, localRecvFrom;
 
-    print_local_migration_plan();
+    if (logMigration) {
+        print_local_migration_plan();
+    }
     find_logical_position(mpiRank, &logicalGroup, &logicalPos);
     sendPos = (logicalPos + 1) % subpopsPerGroup;
     recvPos = (logicalPos - 1 + subpopsPerGroup) % subpopsPerGroup;
@@ -612,7 +667,7 @@ static void move_colony_ring(void)
     int group;
     int tmp;
 
-    if (mpiRank == 0) {
+    if (mpiRank == 0 && logMigration) {
         printf("[rank 0] global moving colony generation %ld: moving_position=%d\n",
                GenNum, movingPosition);
         print_group_members("before moving colony");
@@ -629,7 +684,7 @@ static void move_colony_ring(void)
     }
     set_group_member(0, movingPosition, tmp);
 
-    if (mpiRank == 0) {
+    if (mpiRank == 0 && logMigration) {
         print_group_members("after moving colony");
     }
 
@@ -639,7 +694,7 @@ static void move_colony_ring(void)
 static void select1(void)
 {
     int j, k;
-    for (j = 0; j < N_COLONY; j++) {
+    for (j = 0; j < xColony; j++) {
         if (dis_p[N_COLONY + j] < dis_p[j]) {
             dis_p[j] = dis_p[N_COLONY + j];
             for (k = 0; k < CITY; k++) {
@@ -772,5 +827,27 @@ static void append_csv(double globalBest, double elapsedSec)
     fprintf(fp, "MOVING_HDEA,%d,%ld,%ld,%ld,%d,%lu,%.0f,%.6f\n",
             mpiSize, maxGen, localMigrationInterval, localToGlobalRatio,
             numGroups, baseSeed, globalBest, elapsedSec);
+    fclose(fp);
+}
+
+static void write_tour_file(const char *path, const int route[], double bestLength, int bestRank)
+{
+    int j;
+    FILE *fp = fopen(path, "w");
+    if (fp == NULL) {
+        fail_all_errno(path);
+    }
+
+    fprintf(fp, "# algorithm=MOVING_HDEA\n");
+    fprintf(fp, "# nproc=%d\n", mpiSize);
+    fprintf(fp, "# seed=%lu\n", baseSeed);
+    fprintf(fp, "# best_rank=%d\n", bestRank);
+    fprintf(fp, "# best_length=%.0f\n", bestLength);
+    fprintf(fp, "# city_count=%d\n", xCity);
+    fprintf(fp, "# local_colony_size=%d\n", xColony);
+    fprintf(fp, "# num_groups=%d\n", numGroups);
+    for (j = 0; j < xCity; j++) {
+        fprintf(fp, "%d%s", route[j] + 1, (j + 1 == xCity) ? "\n" : " ");
+    }
     fclose(fp);
 }

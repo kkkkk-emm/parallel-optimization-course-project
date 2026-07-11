@@ -1,11 +1,15 @@
-Version A baseline
+Version A contextual reference
 - best formal mean: 427890.600
 - best single run: 415765
+- not a fair ablation baseline for Version B
+
+TSPLIB optimum
+- pcb442 official optimum: 50778
 
 Scratch grouped statistics
-| algorithm | nproc | mode | count | best | mean | std | avg_time | beats_version_a_mean | beats_version_a_best | mean_improvement_vs_version_a | best_improvement_vs_version_a |
+| algorithm | nproc | mode | count | best | mean | std | avg_time | version_a_mean_ref | version_a_best_ref | mean_gap_to_optimum | best_gap_to_optimum |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| SCRATCH_ILS_2OPT | 2 | mpi | 10 | 51843 | 52218.800 | 310.164 | 2.026200 | yes | yes | 87.796% | 87.531% |
-| SCRATCH_ILS_2OPT | 4 | mpi | 10 | 51843 | 52170.000 | 232.238 | 2.085700 | yes | yes | 87.808% | 87.531% |
-| SCRATCH_ILS_2OPT | 6 | mpi | 10 | 51843 | 52160.600 | 189.863 | 2.061900 | yes | yes | 87.810% | 87.531% |
-| SCRATCH_ILS_2OPT | 1 | serial | 10 | 52055 | 52611.400 | 288.659 | 1.980200 | yes | yes | 87.704% | 87.480% |
+| SCRATCH_ILS_2OPT | 2 | mpi | 10 | 51843 | 52218.800 | 310.164 | 2.026200 | 427890.600 | 415765 | 2.837% | 2.097% |
+| SCRATCH_ILS_2OPT | 4 | mpi | 10 | 51843 | 52170.000 | 232.238 | 2.085700 | 427890.600 | 415765 | 2.741% | 2.097% |
+| SCRATCH_ILS_2OPT | 6 | mpi | 10 | 51843 | 52160.600 | 189.863 | 2.061900 | 427890.600 | 415765 | 2.723% | 2.097% |
+| SCRATCH_ILS_2OPT | 1 | serial | 10 | 52055 | 52611.400 | 288.659 | 1.980200 | 427890.600 | 415765 | 3.611% | 2.515% |

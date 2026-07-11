@@ -89,7 +89,7 @@ def test_scratch_runner_defaults_and_protected_result_guards():
     assert "scratch_algorithm_trials_summary.txt" in trial_text
 
 
-def test_scratch_analyzer_outputs_version_a_comparison_fields(tmp_path):
+def test_scratch_analyzer_outputs_contextual_reference_fields(tmp_path):
     input_csv = tmp_path / "scratch_fixture.csv"
     summary_csv = tmp_path / "scratch_summary.csv"
     summary_txt = tmp_path / "scratch_summary.txt"
@@ -107,15 +107,17 @@ def test_scratch_analyzer_outputs_version_a_comparison_fields(tmp_path):
     summary_rows = [row for row in rows if row["record_type"] == "summary"]
     assert summary_rows
     for row in summary_rows:
-        assert row["beats_version_a_mean"] in {"yes", "no"}
-        assert row["beats_version_a_best"] in {"yes", "no"}
-        assert row["mean_improvement_vs_version_a"] != ""
-        assert row["best_improvement_vs_version_a"] != ""
+        assert row["contextual_reference_version_a_mean"] != ""
+        assert row["contextual_reference_version_a_best"] != ""
+        assert row["gap_to_tsplib_optimum_pct"] != ""
+        assert "beats_version_a_mean" not in row
+        assert "beats_version_a_best" not in row
 
     text = summary_txt.read_text(encoding="utf-8")
-    assert "Version A baseline" in text
-    assert "beats_version_a_mean" in text
-    assert "beats_version_a_best" in text
+    assert "Version A contextual reference" in text
+    assert "TSPLIB optimum" in text
+    assert "beats_version_a_mean" not in text
+    assert "beats_version_a_best" not in text
 
 
 def test_scratch_reports_document_independence_if_present():
@@ -232,5 +234,6 @@ def test_real_scratch_results_shape_if_present():
 
     if FINAL_SUMMARY.exists():
         summary_rows = read_csv(FINAL_SUMMARY)
-        assert any(row.get("beats_version_a_mean") == "yes" for row in summary_rows)
-        assert any(row.get("beats_version_a_best") == "yes" for row in summary_rows)
+        assert all("beats_version_a_mean" not in row for row in summary_rows)
+        assert all("beats_version_a_best" not in row for row in summary_rows)
+        assert all(row.get("gap_to_tsplib_optimum_pct") for row in summary_rows)

@@ -1,0 +1,28 @@
+Paired formal statistics
+
+Mean difference is left global_best minus right global_best; positive values mean the right-hand configuration has shorter tours.
+Holm-Bonferroni is applied to paired t-test p-values. Welch t-test is retained only as a sensitivity reference.
+
+| comparison | n | mean_diff | 95% CI | paired_t_p | wilcoxon_p | Holm-Bonferroni p | Cohen dz |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SERIAL n=1 vs DEA n=2 | 10 | 8248.500 | [3584.107, 12912.893] | 0.003109 | 0.003906 | 0.052846 | 1.265035 |
+| SERIAL n=1 vs DEA n=4 | 10 | 8014.100 | [3691.372, 12336.828] | 0.002328 | 0.001953 | 0.041896 | 1.326232 |
+| SERIAL n=1 vs HDEA n=4 groups=2 | 10 | 6898.400 | [2581.169, 11215.631] | 0.005618 | 0.013672 | 0.089895 | 1.143052 |
+| SERIAL n=1 vs HDEA n=6 groups=3 | 10 | 8151.200 | [4706.021, 11596.379] | 0.000461 | 0.001953 | 0.009681 | 1.692515 |
+| SERIAL n=1 vs MOVING_HDEA n=4 groups=2 | 10 | 8768.100 | [4719.893, 12816.307] | 0.000848 | 0.001953 | 0.016113 | 1.549407 |
+| SERIAL n=1 vs MOVING_HDEA n=6 groups=3 | 10 | 10581.500 | [6045.577, 15117.423] | 0.000509 | 0.001953 | 0.010180 | 1.668800 |
+| DEA n=2 vs DEA n=4 | 10 | -234.400 | [-6008.933, 5540.133] | 0.928848 | 1.000000 | 1.000000 | -0.029038 |
+| DEA n=2 vs HDEA n=4 groups=2 | 10 | -1350.100 | [-6311.904, 3611.704] | 0.553450 | 0.556641 | 1.000000 | -0.194648 |
+| DEA n=2 vs HDEA n=6 groups=3 | 10 | -97.300 | [-4825.294, 4630.694] | 0.963885 | 0.275391 | 1.000000 | -0.014722 |
+| DEA n=2 vs MOVING_HDEA n=4 groups=2 | 10 | 519.600 | [-5236.422, 6275.622] | 0.842735 | 0.556641 | 1.000000 | 0.064576 |
+| DEA n=2 vs MOVING_HDEA n=6 groups=3 | 10 | 2333.000 | [-2877.083, 7543.083] | 0.337535 | 0.232422 | 1.000000 | 0.320327 |
+| DEA n=4 vs HDEA n=4 groups=2 | 10 | -1115.700 | [-3420.009, 1188.609] | 0.301833 | 0.275391 | 1.000000 | -0.346361 |
+| DEA n=4 vs HDEA n=6 groups=3 | 10 | 137.100 | [-2864.239, 3138.439] | 0.919963 | 0.921875 | 1.000000 | 0.032677 |
+| DEA n=4 vs MOVING_HDEA n=4 groups=2 | 10 | 754.000 | [-2024.279, 3532.279] | 0.554461 | 0.556641 | 1.000000 | 0.194141 |
+| DEA n=4 vs MOVING_HDEA n=6 groups=3 | 10 | 2567.400 | [-322.523, 5457.323] | 0.075365 | 0.083984 | 1.000000 | 0.635521 |
+| HDEA n=4 groups=2 vs HDEA n=6 groups=3 | 10 | 1252.800 | [-2891.828, 5397.428] | 0.511331 | 0.734375 | 1.000000 | 0.216232 |
+| HDEA n=4 groups=2 vs MOVING_HDEA n=4 groups=2 | 10 | 1869.700 | [-2560.764, 6300.164] | 0.364690 | 0.431641 | 1.000000 | 0.301888 |
+| HDEA n=4 groups=2 vs MOVING_HDEA n=6 groups=3 | 10 | 3683.100 | [-117.991, 7484.191] | 0.056073 | 0.064453 | 0.841094 | 0.693151 |
+| HDEA n=6 groups=3 vs MOVING_HDEA n=4 groups=2 | 10 | 616.900 | [-2091.706, 3325.506] | 0.618815 | 0.625000 | 1.000000 | 0.162926 |
+| HDEA n=6 groups=3 vs MOVING_HDEA n=6 groups=3 | 10 | 2430.300 | [-409.454, 5270.054] | 0.084854 | 0.130859 | 1.000000 | 0.612212 |
+| MOVING_HDEA n=4 groups=2 vs MOVING_HDEA n=6 groups=3 | 10 | 1813.400 | [-950.820, 4577.620] | 0.171954 | 0.156250 | 1.000000 | 0.469293 |

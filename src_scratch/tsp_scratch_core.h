@@ -1,6 +1,10 @@
 #ifndef TSP_SCRATCH_CORE_H
 #define TSP_SCRATCH_CORE_H
 
+#ifndef _WIN32
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
@@ -8,6 +12,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 typedef struct {
     int n;
@@ -28,7 +35,21 @@ typedef struct {
 
 static double scratch_seconds(void)
 {
-    return (double)clock() / (double)CLOCKS_PER_SEC;
+#ifdef _WIN32
+    static LARGE_INTEGER frequency;
+    static int initialized = 0;
+    LARGE_INTEGER counter;
+    if (!initialized) {
+        QueryPerformanceFrequency(&frequency);
+        initialized = 1;
+    }
+    QueryPerformanceCounter(&counter);
+    return (double)counter.QuadPart / (double)frequency.QuadPart;
+#else
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
+#endif
 }
 
 static void scratch_rng_seed(ScratchRng *rng, unsigned long long seed)

@@ -148,12 +148,14 @@ Version B best formal mean = 52160.600。
 
 mean gap = 2.72%。
 
-Version B 达标情况：
+Version B 达标情况改用 TSPLIB optimum gap 表述：
 
-- `beats_version_a_mean = yes`
-- `beats_version_a_best = yes`
-- `mean_improvement_vs_version_a = 87.810%`
-- `best_improvement_vs_version_a = 87.531%`
+- `contextual_reference_version_a_mean = 427890.600`
+- `contextual_reference_version_a_best = 415765`
+- `mean_gap_to_tsplib_optimum_pct = 2.723%`
+- `gap_to_tsplib_optimum_pct = 2.097%`
+
+Version A 数字只作为上下文参考，不再使用“胜过 Version A”式字段。Version B 与 Version A 的算法族、预算和并行组织方式不同，因此不能把这些数字解释为公平消融胜负。
 
 ## Risk Notes
 

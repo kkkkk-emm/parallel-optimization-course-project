@@ -1,0 +1,9 @@
+Equal-budget experiment summary
+
+All configurations use total_colony_size=100. This checks algorithmic structure under a fixed total population budget, not scale-out resource growth.
+
+| label | count | best | mean | std | median | avg_time | improvement_vs_serial_mean |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| DEA n=2 local=50 | 10 | 398962 | 403297.000 | 3766.316 | 402255.500 | 0.991351 | 8.022% |
+| DEA n=4 local=25 | 10 | 376484 | 382385.400 | 4344.788 | 382293.000 | 0.334110 | 12.791% |
+| SERIAL n=1 local=100 | 10 | 430142 | 438472.100 | 4628.069 | 438356.500 | 3.881304 | 0.000% |
