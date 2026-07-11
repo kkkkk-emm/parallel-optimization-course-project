@@ -1,16 +1,18 @@
-# 基于 MPI 的旅行商问题分层分布式进化算法并行化实验报告
+# 基于 MPI 的旅行商问题双路线综合实验报告
 
 ## 摘要
 
-本文围绕旅行商问题（Traveling Salesman Problem, TSP）的进化算法并行化展开，基于课程提供的原始串行程序 `src/TSP0.C` 和 `data/pcb442.tsp` 数据集，完成了 SERIAL、DEA、HDEA 和 MOVING_HDEA 四类程序的实现、实验和统计分析。原始串行程序采用路径排列编码、城市距离矩阵预计算、种群规模 `N_COLONY=100` 以及 inver-over / invert 类局部变换进行迭代搜索。本文在保留原始算法核心操作的基础上，新增可复现实验串行版本 `src/tsp_serial_exp.c`，并实现三类 MPI 并行进化算法：分布式进化算法 DEA、普通分层分布式进化算法 HDEA、以及基于 moving colony 思想的 MOVING_HDEA。
+本文围绕旅行商问题（Traveling Salesman Problem, TSP）的并行求解展开，最终形成 Version A 和 Version B 两条互补路线。Version A 基于课程提供的原始串行程序 `src/TSP0.C`，在保留原始进化算法核心操作的基础上，新增可复现实验串行版本 `src/tsp_serial_exp.c`，并实现三类 MPI 并行进化算法：分布式进化算法 DEA、普通分层分布式进化算法 HDEA、以及基于 moving colony 思想的 MOVING_HDEA。Version B 则位于 `src_scratch/`，是完全独立实现的 `SCRATCH_ILS_2OPT` 路线，不参考老师代码，也不复制 Version A 的算法实现；它使用独立 parser、整数欧氏距离矩阵、tour 合法性检查、随机贪心初始化、double-bridge perturbation 和 repeated 2-opt 局部搜索。
 
 正式实验使用 `pcb442.tsp`，在 `maxGen=1000`、10 个随机种子、7 组算法配置下得到 70 行结果。统计结果显示，所有被比较的并行配置相对 SERIAL 均取得更低的平均 `global_best`，并且在 Welch t-test 中相对 SERIAL 达到 `p<0.05`。其中 `MOVING_HDEA n=6 groups=3` 的 mean 最低，为 `427890.600`；`DEA n=2` 的单次 best 最低，为 `415765`。但是，MOVING_HDEA 相对 DEA 或 HDEA 的 pairwise 差异未达到 `p<0.05`，因此本文只将其表述为在当前设置下具有均值优势趋势，而不扩大为对其他并行算法的显著优势。
 
-为增强报告的学术完整性，本文还使用已有 `maxGen` 敏感性实验和新增 `reproduction_extension` 补强实验。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用同一 `pcb442.tsp` 数据集、同一整数欧氏距离矩阵和同一 `global_best` 含义，但参数预算与正式实验不同：`maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和最多 9 个 MPI rank。因此补强实验中 `HDEA n=9 groups=3` 的 mean `105127.400` 只能作为更长搜索预算和更接近论文参数口径下的补充现象，不能与正式实验的 `427890.600` 直接横向比较，也不能替代正式 70 行结果。运行时间方面，当前结果不能支持稳定加速结论；本文将并行效果严格区分为“解质量提升”和“运行时间变化”两部分。
+为增强报告的学术完整性，本文还使用已有 `maxGen` 敏感性实验和新增 `reproduction_extension` 补强实验。收敛趋势实验显示，SERIAL、DEA n=4、HDEA n=4 groups=2 和 MOVING_HDEA n=4 groups=2 在 `maxGen=1000 -> 3000 -> 5000` 时 mean 均持续下降，说明正式实验是有限迭代预算下的相对比较。补强实验使用同一 `pcb442.tsp` 数据集、同一整数欧氏距离矩阵和同一 `global_best` 含义，但参数预算与正式实验不同：`maxGen=5000`、`migration_interval=25`、`local_to_global_ratio=20`、5 个 seed 和最多 9 个 MPI rank。因此补强实验中 `HDEA n=9 groups=3` 的 mean `105127.400` 只能作为更长搜索预算和更接近论文参数口径下的补充现象，不能与正式实验的 `427890.600` 直接横向比较，也不能替代正式 70 行结果。
+
+Version B 正式实验使用 `SCRATCH_ILS_2OPT` 进行 10 seeds 的 serial、MPI n=2、MPI n=4 和 MPI n=6 对照。最佳正式 mean 来自 MPI n=6，为 `52160.600`；最佳单次路径长度为 `51843`。以 TSPLIB official optimum 50778 为参考，Version B best 的 optimality gap 为 `2.10%`，best formal mean 的 mean gap 为 `2.72%`。Version B 与 Version A 不是严格公平消融，因为二者算法族、预算和并行策略不同；Version B 的作用是证明在同一 `pcb442.tsp` 实例上，一个完全独立实现的启发式/元启发式路线可以取得接近最优的高质量解。运行时间方面，本文仍严格区分“解质量提升”和“运行时间变化”，不把不同路线的运行时间差异写成严格 speedup。
 
 ## 1. 引言
 
-并行分布计算课程大作业的核心目标，是在已有串行程序基础上使用 MPI 进行并行化，并通过实验说明并行化是否能够改善求解效果。对于 TSP 这类组合优化问题，单纯把计算循环拆分到多个进程并不一定自然带来更好的解；并行化设计必须同时考虑搜索空间探索、多样性保持、信息交换频率以及通信开销。因此，本文不是把 MPI 仅作为加速工具，而是将其作为构造多子种群分布式进化算法的基础。
+并行分布计算课程大作业的核心目标，是在已有串行程序基础上使用 MPI 进行并行化，并通过实验说明并行化是否能够改善求解效果。本文进一步把工作组织为双路线：Version A 负责“基于参考代码的复现/改造”，Version B 负责“完全独立实现并冲击更高解质量”。对于 TSP 这类组合优化问题，单纯把计算循环拆分到多个进程并不一定自然带来更好的解；并行化设计必须同时考虑搜索空间探索、多样性保持、信息交换频率以及通信开销。因此，本文不是把 MPI 仅作为加速工具，而是把它分别用于 Version A 的多子种群进化结构，以及 Version B 的 independent multi-start 并行局部搜索。
 
 参考论文 Global migration strategy with moving colony for hierarchical distributed evolutionary algorithms 提出了从 DEA 到 HDEA，再到 moving colony HDEA 的分层并行进化思想。论文关注的重点是 global migration 的迁移对象：传统 HDEA 的全局迁移对象是 individual，而 moving colony 策略把全局迁移对象提升为 subpopulation 或其逻辑归属关系。本文的实现并非逐项复刻论文所有实验设置，而是在课程项目范围内实现其核心思想，并在 `pcb442.tsp` 上进行可复现实验。
 
@@ -20,7 +22,8 @@
 2. DEA、HDEA 和 MOVING_HDEA 如何在 MPI 进程上组织子种群和迁移。
 3. 当前实验是否支持并行算法相对串行基线改善解质量。
 4. 当前实验是否支持运行时间加速结论。
-5. 当前实现与参考论文之间有哪些对应关系和差异。
+5. Version B 独立实现是否能在同一 `pcb442.tsp` 实例上取得接近 TSPLIB 最优值的高质量解。
+6. 当前实现与参考论文之间有哪些对应关系和差异。
 
 ## 2. 问题背景：TSP 与进化算法
 
@@ -391,27 +394,95 @@ reports/06_reproduction_extension.md
 
 因此，本文最稳妥的结论是：MPI 并行进化结构显著改善了解质量；运行时间方面没有足够证据支持稳定加速表述。
 
-## 16. 局限性
+## 16. Version B：完全独立实现的 SCRATCH_ILS_2OPT 路线
+
+Version B 是与 Version A 并列的第二条路线，目标是从零实现一个不参考老师代码、不复制 Version A 算法的 TSP 求解器。相关源码全部放在 `src_scratch/`：
+
+```text
+src_scratch/tsp_scratch_core.h
+src_scratch/tsp_scratch_serial.c
+src_scratch/tsp_scratch_mpi.c
+```
+
+Version B 的核心算法为 `SCRATCH_ILS_2OPT`。它使用独立 TSP parser 读取 `data/pcb442.tsp`，独立构造整数欧氏距离矩阵，独立实现 tour length 和 tour 合法性检查。搜索策略采用 randomized greedy initialization 得到初始 tour，然后执行 repeated 2-opt 局部搜索；在迭代局部搜索阶段使用 double-bridge perturbation 破坏当前结构，再通过 2-opt 重新下降。MPI 版本不是 Version A 的 DEA/HDEA/MOVING_HDEA 迁移框架，而是 independent multi-start parallel search：每个 rank 使用派生 seed 独立搜索，最后用 `MPI_Reduce` 汇总全局最短路径。
+
+Version B 的正式实验文件为：
+
+```text
+results/scratch_experiment_results.csv
+results/scratch_analysis_summary.csv
+results/scratch_analysis_summary.txt
+results/scratch_best_tours/
+reports/scratch_design.md
+reports/scratch_algorithm_search_log.md
+reports/scratch_audit.md
+```
+
+Version B 正式统计如下：
+
+| algorithm | nproc | mode | count | best | mean | std | avg_time |
+|---|---:|---|---:|---:|---:|---:|---:|
+| SCRATCH_ILS_2OPT | 1 | serial | 10 | 52055 | 52611.400 | 288.659 | 1.980200 |
+| SCRATCH_ILS_2OPT | 2 | mpi | 10 | 51843 | 52218.800 | 310.164 | 2.026200 |
+| SCRATCH_ILS_2OPT | 4 | mpi | 10 | 51843 | 52170.000 | 232.238 | 2.085700 |
+| SCRATCH_ILS_2OPT | 6 | mpi | 10 | 51843 | 52160.600 | 189.863 | 2.061900 |
+
+TSPLIB official optimum 50778 是评价 Version B 解质量的重要参考。Version B best 为 `51843`，optimality gap 为：
+
+```text
+(51843 - 50778) / 50778 = 2.10%
+```
+
+Version B best formal mean 为 `52160.600`，mean gap 为：
+
+```text
+(52160.600 - 50778) / 50778 = 2.72%
+```
+
+为避免只报告长度而忽略 tour 合法性，本文保存了每个正式配置的 best tour：
+
+```text
+results/scratch_best_tours/best_SCRATCH_ILS_2OPT_serial_n1.tour
+results/scratch_best_tours/best_SCRATCH_ILS_2OPT_mpi_n2.tour
+results/scratch_best_tours/best_SCRATCH_ILS_2OPT_mpi_n4.tour
+results/scratch_best_tours/best_SCRATCH_ILS_2OPT_mpi_n6.tour
+```
+
+验证脚本 `scripts/verify_scratch_tours.py` 会重新读取 `pcb442.tsp`，检查每条 best tour 的城市数量为 442、每个城市恰好出现一次、路径按闭环方式计算，并确认重新计算长度与 `results/scratch_experiment_results.csv` 中对应配置的 `best_length` 完全一致。当前验证结果为 `SCRATCH_TOUR_VERIFY_OK`，共验证 4 个正式配置。
+
+需要强调的是，Version B 与 Version A 不是严格公平消融。Version A 的目的在于基于老师原始进化算法实现 MPI 并行化，并验证 DEA/HDEA/MOVING_HDEA 的分层迁移机制；Version B 的目的在于完全独立实现一个更强的 TSP 启发式求解路线。两者使用同一 `pcb442.tsp` 和同一整数欧氏闭环路径长度定义，但算法族、搜索预算、并行组织方式不同。因此，Version B 可以作为“独立实现取得接近最优解”的证据，不能反向否定 Version A 的并行化机制实验价值。
+
+## 17. 双路线综合讨论
+
+本文最终形成的主结论可以概括为三点：
+
+1. Version A 完成参考代码并行化和分层迁移机制验证。基于 `src/TSP0.C` 的可复现实验链路实现了 SERIAL、DEA、HDEA 和 MOVING_HDEA，并通过正式 70 行实验说明并行进化结构相对串行基线改善了解质量。
+2. Version B 在同一 `pcb442.tsp` 实例上取得接近最优的高质量解。`SCRATCH_ILS_2OPT` MPI n=6 的 mean 为 `52160.600`，best 为 `51843`，相对 TSPLIB official optimum 50778 的 best gap 为 `2.10%`。
+3. 两条路线共同满足“复现/改造”和“独立实现”的课程要求。Version A 体现对参考代码和参考论文机制的理解与并行改造，Version B 体现从零设计数据结构、局部搜索和 MPI multi-start 的独立工程能力。
+
+因此，最终报告不应把 Version B 写成 Version A 的替代实验，也不应把 Version A 的补强实验和 Version B 的 scratch 实验混在一起。更稳妥的表述是：Version A 验证并行进化机制，Version B 展示独立启发式求解能力；二者共同构成课程项目的完整技术贡献。
+
+## 18. 局限性
 
 本文实验存在以下局限：
 
 1. 数据集单一。所有正式结论都基于 `pcb442.tsp`，不能直接推广到全部 TSPLIB 实例。
-2. 总计算预算不严格公平。并行配置每个 rank 都有 100 个体，nproc 越大总个体数越大。
-3. 样本量有限。正式实验每组 10 seeds，补强实验每组 5 seeds，仍不足以支撑发表级统计结论。
-4. 参数搜索不足。迁移间隔、group 数量、local/global 轮次比、moving position 策略都没有系统搜索。
-5. 拓扑不完整。当前未实现 random individual HDEA 和 random colony HDEA。
+2. 总计算预算不严格公平。Version A 并行配置每个 rank 都有 100 个体，nproc 越大总个体数越大；Version B MPI 配置通过更多 rank 获得更多 independent starts。
+3. 样本量有限。Version A 正式实验每组 10 seeds，补强实验每组 5 seeds；Version B 正式实验每组 10 seeds，仍不足以支撑发表级统计结论。
+4. 参数搜索不足。Version A 的迁移间隔、group 数量、local/global 轮次比、moving position 策略没有系统搜索；Version B 的 perturbation 强度、candidate list、3-opt/LK-lite 等方向也未完全展开。
+5. 拓扑不完整。当前 Version A 未实现 random individual HDEA 和 random colony HDEA；Version B MPI 版本未实现 island exchange。
 6. 运行环境有限。单机 Windows/MS-MPI 与论文中的多核计算平台不同。
-7. 收敛未完全。`maxGen` 敏感性实验表明 1000 代到 5000 代仍有显著下降。
+7. 收敛未完全。Version A 的 `maxGen` 敏感性实验表明 1000 代到 5000 代仍有显著下降；Version B 虽接近 TSPLIB 最优，但仍未达到 official optimum。
 
-这些局限不影响课程作业中“实现 MPI 并行进化算法并证明解质量改善”的主要目标，但限制了对算法优劣和论文复现程度的外推。
+这些局限不影响课程作业中“实现 MPI 并行进化算法并证明解质量改善”和“给出完全独立实现路线”的主要目标，但限制了对算法优劣和论文复现程度的外推。
 
-## 17. 结论
+## 19. 结论
 
-本文完成了基于 MPI 的 TSP 分布式进化算法实验。实现层面，项目保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果是本文主结论依据：所有被比较的并行配置相对 SERIAL 均取得显著更低的平均路径长度。补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，作为附录性质证据进一步观察到并行配置相对同预算 SERIAL 的解质量优势，但它不替代正式实验。
+本文完成了基于 MPI 的 TSP 双路线综合实验。Version A 保留原始 `src/TSP0.C`，新增可复现实验串行版本，并实现 DEA、HDEA 和 MOVING_HDEA 三类 MPI 并行算法。实验层面，正式 70 行结果是 Version A 主结论依据：所有被比较的并行配置相对 SERIAL 均取得显著更低的平均路径长度。补强实验在更长 `maxGen=5000` 和更接近论文的 `local_to_global_ratio=20` 设置下，作为附录性质证据进一步观察到并行配置相对同预算 SERIAL 的解质量优势，但它不替代正式实验。
 
-本文的最重要结论是：并行/分布式进化结构通过多子种群并行搜索、个体迁移、分层迁移和逻辑子种群移动，能够改善当前 TSP 实验中的搜索质量。正式实验中 `MOVING_HDEA n=6 groups=3` 取得最低 mean `427890.600`，这是正式 70 行结果范围内的主排序结论；补强实验中 `HDEA n=9 groups=3` 取得最低 mean `105127.400`，这是不同预算下的附录现象，只说明更长迭代和更大并行搜索规模下可以得到更短路径。并行算法之间没有稳定显著排序，运行时间也不能表述为稳定加速。
+Version B 则提供了完全独立实现的第二条路线。`SCRATCH_ILS_2OPT` 使用独立 parser、距离矩阵、tour 校验、2-opt 和 ILS 搜索，在同一 `pcb442.tsp` 上得到 best `51843` 和 best formal mean `52160.600`。以 TSPLIB official optimum 50778 为参考，Version B 的 best gap 为 `2.10%`，mean gap 为 `2.72%`，说明该独立实现已经取得接近最优的高质量解。
 
-因此，本文适合提交的最终表述是：本项目参考论文核心思想完成了 DEA、HDEA 和 ring moving colony HDEA 的 MPI 实现，并通过正式实验、收敛趋势实验和补强实验说明并行进化结构能提升解质量；但当前实验不是论文全部实验的完整复刻，也不是严格固定总计算预算或稳定运行时间加速实验。
+本文的最终综合表述是：Version A 完成参考代码并行化和分层迁移机制验证；Version B 在同一 `pcb442.tsp` 实例上取得接近最优的高质量解；两条路线共同满足“复现/改造”和“独立实现”的课程要求。与此同时，本文不声称完全复现论文，不声称 Version A 并行算法之间已经形成显著排序，不声称 MPI 运行时间显著加速，也不把 Version B 作为 Version A 的严格公平消融。
 
 ## 参考文献
 
@@ -448,6 +519,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_reproduction_e
 python .\scripts\analyze_reproduction_extension.py .\results\reproduction_extension_results.csv
 ```
 
+Version B scratch trial、正式实验和 tour 验证：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_scratch_trials.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_scratch_final.ps1
+python .\scripts\verify_scratch_tours.py
+```
+
 生成图表：
 
 ```powershell
@@ -457,7 +536,7 @@ python .\scripts\generate_report_figures.py
 验证：
 
 ```powershell
-python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py
+python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py
 Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\final_analysis_summary.txt,results\final_analysis_summary.csv
 ```
 
@@ -470,21 +549,35 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 | `src/tsp_mpi_dea.c` | MPI DEA 实现 |
 | `src/tsp_mpi_hdea.c` | MPI HDEA 实现 |
 | `src/tsp_mpi_moving_hdea.c` | MPI MOVING_HDEA 实现 |
+| `src_scratch/tsp_scratch_core.h` | Version B 独立 parser、距离、tour 校验和局部搜索核心 |
+| `src_scratch/tsp_scratch_serial.c` | Version B serial scratch 入口 |
+| `src_scratch/tsp_scratch_mpi.c` | Version B MPI multi-start scratch 入口 |
 | `scripts/run_experiments_final.ps1` | 正式实验脚本 |
 | `scripts/analyze_results_final.py` | 正式实验分析脚本 |
 | `scripts/run_convergence_sensitivity.ps1` | 收敛趋势实验脚本 |
 | `scripts/analyze_convergence_sensitivity.py` | 收敛趋势分析脚本 |
 | `scripts/run_reproduction_extension.ps1` | 复现性补强实验脚本 |
 | `scripts/analyze_reproduction_extension.py` | 复现性补强分析脚本 |
+| `scripts/run_scratch_trials.ps1` | Version B 算法锦标赛 trial 脚本 |
+| `scripts/run_scratch_final.ps1` | Version B 正式实验脚本 |
+| `scripts/analyze_scratch_results.py` | Version B 结果分析脚本 |
+| `scripts/verify_scratch_tours.py` | Version B best tour 合法性验证脚本 |
 | `scripts/generate_report_figures.py` | 图表生成脚本 |
 | `results/final_experiment_results.csv` | 正式实验原始结果 |
 | `results/final_analysis_summary.csv` | 正式实验统计结果 |
 | `results/convergence_sensitivity_results.csv` | 收敛趋势实验原始结果 |
 | `results/reproduction_extension_results.csv` | 补强实验原始结果 |
+| `results/scratch_algorithm_trials.csv` | Version B trial 原始结果 |
+| `results/scratch_experiment_results.csv` | Version B 正式实验原始结果 |
+| `results/scratch_analysis_summary.csv` | Version B 正式实验统计摘要 |
+| `results/scratch_best_tours/` | Version B 各正式配置 best tour |
 | `results/figures/` | 最终报告图表目录 |
 | `reports/04_final_audit.md` | 正式结果审计 |
 | `reports/05_convergence_sensitivity.md` | 收敛趋势说明 |
 | `reports/06_reproduction_extension.md` | 补强实验说明 |
+| `reports/scratch_design.md` | Version B 独立实现设计说明 |
+| `reports/scratch_algorithm_search_log.md` | Version B 算法搜索日志 |
+| `reports/scratch_audit.md` | Version B 合法性和结果审计 |
 
 ## 附录 C：复现实验步骤
 
@@ -493,6 +586,8 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 3. 运行正式分析脚本，得到 `results/final_analysis_summary.csv/txt`。
 4. 运行收敛趋势实验和分析脚本，得到 `results/convergence_sensitivity_*`。
 5. 运行复现性补强实验和分析脚本，得到 `results/reproduction_extension_*`。
-6. 运行 `scripts/generate_report_figures.py`，将图片写入 `results/figures/`。
-7. 运行 pytest 验证报告、图表和结果文件完整性。
-8. 使用 SHA256 核对 `final_*` 正式结果没有被误改。
+6. 运行 Version B trial 和正式实验脚本，得到 `results/scratch_*`。
+7. 运行 `scripts/verify_scratch_tours.py`，验证 `results/scratch_best_tours/` 中每条 best tour 的合法性和长度一致性。
+8. 运行 `scripts/generate_report_figures.py`，将图片写入 `results/figures/`。
+9. 运行 pytest 验证报告、图表和结果文件完整性。
+10. 使用 SHA256 核对 `final_*` 正式结果没有被误改。

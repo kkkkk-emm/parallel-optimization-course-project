@@ -1,0 +1,13 @@
+Version A baseline
+- best formal mean: 427890.600
+- best single run: 415765
+
+Scratch grouped statistics
+| algorithm | nproc | mode | count | best | mean | std | avg_time | beats_version_a_mean | beats_version_a_best | mean_improvement_vs_version_a | best_improvement_vs_version_a |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SCRATCH_GREEDY_2OPT | 4 | mpi | 3 | 53473 | 53955.000 | 506.569 | 1.090667 | yes | yes | 87.390% | 87.139% |
+| SCRATCH_ILS_2OPT | 4 | mpi | 3 | 52130 | 52473.667 | 303.711 | 1.058333 | yes | yes | 87.737% | 87.462% |
+| SCRATCH_NN_2OPT | 4 | mpi | 3 | 52528 | 52577.000 | 56.630 | 1.010333 | yes | yes | 87.713% | 87.366% |
+| SCRATCH_GREEDY_2OPT | 1 | serial | 3 | 54333 | 54535.667 | 215.477 | 1.063667 | yes | yes | 87.255% | 86.932% |
+| SCRATCH_ILS_2OPT | 1 | serial | 3 | 52666 | 53462.333 | 689.819 | 0.910000 | yes | yes | 87.506% | 87.333% |
+| SCRATCH_NN_2OPT | 1 | serial | 3 | 52755 | 52881.667 | 166.308 | 1.010333 | yes | yes | 87.641% | 87.311% |

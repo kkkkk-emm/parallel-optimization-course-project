@@ -1,17 +1,21 @@
 # TSP MPI Evolution Experiment
 
-This repository is the final project for the parallel and distributed computing course. It starts from the original serial TSP evolutionary algorithm provided by the instructor and implements MPI-based DEA, HDEA, and MOVING_HDEA variants for comparison on `data/pcb442.tsp`.
+This repository is the final project for the parallel and distributed computing course. It contains two complementary TSP routes on `data/pcb442.tsp`: Version A starts from the instructor-provided serial evolutionary algorithm and implements MPI-based DEA, HDEA, and MOVING_HDEA variants; Version B is a completely independent scratch implementation under `src_scratch/` using `SCRATCH_ILS_2OPT`.
 
 The current results support a solution-quality conclusion: under the formal `maxGen=1000` experiment, the compared parallel evolutionary configurations produce lower mean `global_best` values than the serial baseline. The current results do not support claiming significant runtime speedup.
 
 ## Project Scope
 
-- Preserve `src/TSP0.C` as the original instructor-provided reference.
-- Use `src/tsp_serial_exp.c` as the reproducible serial baseline.
-- Implement and compare three MPI parallel evolutionary algorithms:
+- Version A preserves `src/TSP0.C` as the original instructor-provided reference.
+- Version A uses `src/tsp_serial_exp.c` as the reproducible serial baseline.
+- Version A implements and compares three MPI parallel evolutionary algorithms:
   - `src/tsp_mpi_dea.c`
   - `src/tsp_mpi_hdea.c`
   - `src/tsp_mpi_moving_hdea.c`
+- Version B is a separate, from-scratch implementation in `src_scratch/`:
+  - `src_scratch/tsp_scratch_core.h`
+  - `src_scratch/tsp_scratch_serial.c`
+  - `src_scratch/tsp_scratch_mpi.c`
 - Report formal results from the existing 70-run experiment unless a new experiment is explicitly requested.
 
 This project references the DEA/HDEA/moving colony ideas from the paper in `docs/hierarchical.pdf`, but it does not claim to fully reproduce all paper experiments.
@@ -21,6 +25,7 @@ This project references the DEA/HDEA/moving colony ideas from the paper in `docs
 | Path | Purpose |
 |---|---|
 | `src/` | Original serial source, reproducible serial source, and MPI algorithm implementations. |
+| `src_scratch/` | Version B independent TSP parser, local search, and scratch MPI implementation. |
 | `data/` | TSP input data, including `pcb442.tsp`. |
 | `docs/` | Reference paper and supporting notes. |
 | `scripts/` | PowerShell and Python automation scripts for experiments, analysis, and figures. |
@@ -37,6 +42,7 @@ This project references the DEA/HDEA/moving colony ideas from the paper in `docs
 | DEA | Implemented | MPI distributed evolutionary algorithm; each rank keeps one local colony and exchanges best individuals through ring migration. |
 | HDEA | Implemented | Hierarchical DEA with group-level local migration and individual global migration between groups. |
 | MOVING_HDEA | Implemented | Ring moving colony HDEA; global moving updates logical group membership through `groupMembers` rather than sending whole colonies. |
+| SCRATCH_ILS_2OPT | Implemented | Version B independent randomized greedy initialization + double-bridge perturbation + repeated 2-opt, with serial and MPI multi-start modes. |
 
 ## Formal Experiment
 
@@ -113,6 +119,35 @@ results/reproduction_extension_summary.txt
 
 It uses `maxGen=5000`, `migration_interval=25`, `local_to_global_ratio=20`, and 5 seeds to compare SERIAL, DEA, HDEA, and MOVING_HDEA at n=4 and n=9 where applicable. This experiment is a reduced, course-project-scale mechanism check against the reference paper. It does not replace the formal 70-run experiment and must not be described as complete paper reproduction.
 
+## Version B Scratch Experiment
+
+Version B is documented in:
+
+```text
+reports/scratch_design.md
+reports/scratch_algorithm_search_log.md
+reports/scratch_audit.md
+results/scratch_algorithm_trials.csv
+results/scratch_algorithm_trials_summary.txt
+results/scratch_experiment_results.csv
+results/scratch_analysis_summary.csv
+results/scratch_analysis_summary.txt
+results/scratch_best_tours/
+```
+
+The selected Version B algorithm is `SCRATCH_ILS_2OPT`. It does not reference the instructor code or Version A algorithm code. It uses an independent parser, integer Euclidean distance matrix, tour validity checker, randomized greedy initialization, double-bridge perturbation, and repeated 2-opt local search.
+
+Formal Version B summary:
+
+| algorithm | nproc | mode | count | best | mean | avg_time |
+|---|---:|---|---:|---:|---:|---:|
+| SCRATCH_ILS_2OPT | 1 | serial | 10 | 52055 | 52611.400 | 1.980200 |
+| SCRATCH_ILS_2OPT | 2 | mpi | 10 | 51843 | 52218.800 | 2.026200 |
+| SCRATCH_ILS_2OPT | 4 | mpi | 10 | 51843 | 52170.000 | 2.085700 |
+| SCRATCH_ILS_2OPT | 6 | mpi | 10 | 51843 | 52160.600 | 2.061900 |
+
+TSPLIB `pcb442` official optimum is `50778`. Version B best is `51843`, with an optimality gap of `2.10%`; Version B best formal mean is `52160.600`, with a mean gap of `2.72%`. Version B and Version A are not a strict fair ablation because they use different algorithm families and budgets.
+
 ## Common Commands
 
 Run the formal experiment only when explicitly needed, because it overwrites neither conclusions nor reports by itself and takes time:
@@ -136,6 +171,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_reproduction_e
 python .\scripts\analyze_reproduction_extension.py .\results\reproduction_extension_results.csv
 ```
 
+Run and verify Version B scratch experiments:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_scratch_trials.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_scratch_final.ps1
+python .\scripts\verify_scratch_tours.py
+```
+
 Generate report figures:
 
 ```powershell
@@ -145,7 +188,7 @@ python .\scripts\generate_report_figures.py
 Run report/output checks:
 
 ```powershell
-python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py
+python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py
 ```
 
 Check the protected formal result files:
@@ -163,3 +206,4 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 - Do not claim complete paper reproduction.
 - Do not claim MOVING_HDEA is significantly better than DEA/HDEA.
 - Do not claim MPI significantly accelerates runtime in the current results.
+- Do not describe Version B as a strict fair ablation against Version A; it is an independent scratch route on the same `pcb442.tsp` instance.
