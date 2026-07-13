@@ -6,10 +6,14 @@
 #include <string.h>
 #include <time.h>
 
+#ifndef N_COLONY
 #define N_COLONY 100
+#endif
+#ifndef CITY
 #define CITY 442
+#endif
 
-int xColony = 100;
+int xColony = N_COLONY;
 int xCity = CITY;
 double probab1 = 0.02;
 long NOCHANGE = 200000;
@@ -34,6 +38,8 @@ static int mpiRank = 0;
 static int mpiSize = 1;
 static int verbose = 0;
 static int logMigration = 0;
+static double migrationCommElapsed = 0.0;
+static double finalCollectiveCommElapsed = 0.0;
 
 static void configure(int argc, char **argv);
 static long parse_positive_long(const char *text, const char *name);
@@ -53,12 +59,13 @@ static double compute_path_length(const int route[]);
 static void evolve_one_generation(void);
 static void migrate_ring(void);
 static int file_has_content(const char *path);
-static void append_csv(double globalBest, double elapsedSec);
+static void append_csv(double globalBest, double elapsedSec, double migrationCommSec, double finalCollectiveCommSec);
 static void write_tour_file(const char *path, const int route[], double bestLength, int bestRank);
 
 int main(int argc, char **argv)
 {
     double startTime, localElapsed, elapsedSec = 0.0;
+    double finalCommStart, migrationCommSec = 0.0, finalCollectiveCommSec = 0.0;
     double *allBest = NULL;
     int *allTours = NULL;
     double globalBest = 0.0;
@@ -90,7 +97,6 @@ int main(int argc, char **argv)
         }
     }
 
-    localElapsed = MPI_Wtime() - startTime;
     if (verbose) {
         printf("[rank %d] final local best: %.0f\n", mpiRank, sumbest);
         fflush(stdout);
@@ -103,9 +109,14 @@ int main(int argc, char **argv)
         }
     }
 
+    finalCommStart = MPI_Wtime();
     MPI_Gather(&sumbest, 1, MPI_DOUBLE, allBest, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Gather(&colony[ibest][0], xCity, MPI_INT, allTours, xCity, MPI_INT, 0, MPI_COMM_WORLD);
+    finalCollectiveCommElapsed = MPI_Wtime() - finalCommStart;
+    localElapsed = MPI_Wtime() - startTime;
     MPI_Reduce(&localElapsed, &elapsedSec, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&migrationCommElapsed, &migrationCommSec, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&finalCollectiveCommElapsed, &finalCollectiveCommSec, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     if (mpiRank == 0) {
         globalBest = allBest[0];
@@ -119,7 +130,7 @@ int main(int argc, char **argv)
         printf("[rank 0] final global best: %.0f\n", globalBest);
         printf("[rank 0] elapsed time: %.6f sec\n", elapsedSec);
         fflush(stdout);
-        append_csv(globalBest, elapsedSec);
+        append_csv(globalBest, elapsedSec, migrationCommSec, finalCollectiveCommSec);
         if (tourOutputPath != NULL && tourOutputPath[0] != '\0') {
             write_tour_file(tourOutputPath, allTours + ((size_t)bestRank * (size_t)xCity), globalBest, bestRank);
         }
@@ -444,9 +455,13 @@ static void migrate_ring(void)
     }
     replacedDistance = dis_p[iworst];
 
-    MPI_Sendrecv(sendPath, xCity, MPI_INT, dest, 0,
-                 recvPath, xCity, MPI_INT, source, 0,
-                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    {
+        double commStart = MPI_Wtime();
+        MPI_Sendrecv(sendPath, xCity, MPI_INT, dest, 0,
+                     recvPath, xCity, MPI_INT, source, 0,
+                     MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        migrationCommElapsed += MPI_Wtime() - commStart;
+    }
 
     for (j = 0; j < xCity; j++) {
         colony[iworst][j] = recvPath[j];
@@ -582,21 +597,28 @@ static int file_has_content(const char *path)
     return size > 0;
 }
 
-static void append_csv(double globalBest, double elapsedSec)
+static void append_csv(double globalBest, double elapsedSec, double migrationCommSec, double finalCollectiveCommSec)
 {
     int needHeader = !file_has_content(outputPath);
     FILE *fp = fopen(outputPath, "a");
+    double mpiCommSec = migrationCommSec + finalCollectiveCommSec;
+    double computationSec = elapsedSec - mpiCommSec;
+    double commRatio = elapsedSec > 0.0 ? mpiCommSec / elapsedSec : 0.0;
 
     if (fp == NULL) {
         fail_all_errno(outputPath);
     }
-
-    if (needHeader) {
-        fprintf(fp, "algorithm,nproc,maxGen,migration_interval,base_seed,global_best,elapsed_sec\n");
+    if (computationSec < 0.0) {
+        computationSec = 0.0;
     }
 
-    fprintf(fp, "DEA,%d,%ld,%ld,%lu,%.0f,%.6f\n",
-            mpiSize, maxGen, migrationInterval, baseSeed, globalBest, elapsedSec);
+    if (needHeader) {
+        fprintf(fp, "algorithm,nproc,maxGen,migration_interval,base_seed,global_best,elapsed_sec,migration_comm_sec,final_collective_comm_sec,mpi_comm_sec,computation_sec,comm_ratio\n");
+    }
+
+    fprintf(fp, "DEA,%d,%ld,%ld,%lu,%.0f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+            mpiSize, maxGen, migrationInterval, baseSeed, globalBest, elapsedSec,
+            migrationCommSec, finalCollectiveCommSec, mpiCommSec, computationSec, commRatio);
     fclose(fp);
 }
 

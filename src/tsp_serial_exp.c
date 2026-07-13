@@ -12,10 +12,14 @@
 #include <windows.h>
 #endif
 
+#ifndef N_COLONY
 #define N_COLONY 100
+#endif
+#ifndef CITY
 #define CITY 442
+#endif
 
-int xColony = 100;
+int xColony = N_COLONY;
 int xCity = CITY;
 double probab1 = 0.02;
 long NOCHANGE = 200000;

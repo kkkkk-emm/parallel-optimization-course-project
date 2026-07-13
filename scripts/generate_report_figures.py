@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FINAL_SUMMARY = ROOT / "results" / "final_analysis_summary.csv"
 CONVERGENCE_SUMMARY = ROOT / "results" / "convergence_sensitivity_summary.csv"
 REPRODUCTION_SUMMARY = ROOT / "results" / "reproduction_extension_summary.csv"
+FIXED_POPULATION_SUMMARY = ROOT / "results" / "fixed_population_summary.csv"
 ASSET_DIR = ROOT / "reports" / "assets"
 FIGURE_DIR = ROOT / "results" / "figures"
 
@@ -163,6 +164,12 @@ def reproduction_summary_rows():
     return [row for row in read_csv(REPRODUCTION_SUMMARY) if row["record_type"] == "summary"]
 
 
+def fixed_population_summary_rows():
+    if not FIXED_POPULATION_SUMMARY.exists():
+        return []
+    return [row for row in read_csv(FIXED_POPULATION_SUMMARY) if row["record_type"] == "summary"]
+
+
 def plot_reproduction_improvement_ratio():
     rows = reproduction_summary_rows()
     if not rows:
@@ -179,6 +186,61 @@ def plot_reproduction_improvement_ratio():
     for bar, value in zip(bars, values):
         ax.text(bar.get_x() + bar.get_width() / 2, value, f"{value:.2f}%", ha="center", va="bottom", fontsize=8)
     save_current(ASSET_DIR / "fig_reproduction_improvement_ratio.png")
+
+
+def plot_fixed_population_scalability():
+    rows = fixed_population_summary_rows()
+    if not rows:
+        return
+    rows = sorted(rows, key=lambda row: int(row["nproc"]))
+    nproc = [int(row["nproc"]) for row in rows]
+    avg_time = [float(row["avg_time"]) for row in rows]
+    speedup = [float(row["speedup_vs_serial"]) for row in rows]
+    efficiency = [float(row["efficiency_vs_serial"]) for row in rows]
+
+    fig, axes = plt.subplots(1, 3, figsize=(13.2, 4.6))
+    panels = [
+        (axes[0], avg_time, "Runtime", "avg_time (s)", "#2563eb"),
+        (axes[1], speedup, "Speedup", "speedup vs SERIAL", "#16a34a"),
+        (axes[2], efficiency, "Efficiency", "efficiency", "#f97316"),
+    ]
+    for ax, values, title, ylabel, color in panels:
+        ax.plot(nproc, values, marker="o", lw=2.2, color=color)
+        ax.set_title(title, fontsize=12)
+        ax.set_xlabel("nproc")
+        ax.set_ylabel(ylabel)
+        ax.set_xticks(nproc)
+        ax.grid(True, alpha=0.25)
+        for x, value in zip(nproc, values):
+            ax.text(x, value, f"{value:.2f}", ha="center", va="bottom", fontsize=8)
+    fig.suptitle("Fixed Population Scalability (total_colony_size=400)", fontsize=15)
+    save_current(ASSET_DIR / "fig_fixed_population_scalability.png")
+
+
+def plot_fixed_population_comm_breakdown():
+    rows = fixed_population_summary_rows()
+    if not rows:
+        return
+    rows = sorted(rows, key=lambda row: int(row["nproc"]))
+    labels = [f"{row['algorithm']}\nn={row['nproc']}" for row in rows]
+    computation = [float(row["avg_computation_sec"]) for row in rows]
+    mpi_comm = [float(row["avg_mpi_comm_sec"]) for row in rows]
+    comm_ratio = [float(row["avg_comm_ratio"]) * 100.0 for row in rows]
+    x = np.arange(len(rows))
+
+    fig, ax = plt.subplots(figsize=(10.8, 5.6))
+    ax.bar(x, computation, label="computation time", color="#2563eb")
+    ax.bar(x, mpi_comm, bottom=computation, label="MPI communication time", color="#f97316")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("avg_time components (s)")
+    ax.set_title("Fixed Population Computation vs Communication Time", fontsize=15, pad=14)
+    ax.grid(axis="y", alpha=0.25)
+    ax.legend(loc="upper right")
+    for idx, ratio in enumerate(comm_ratio):
+        total = computation[idx] + mpi_comm[idx]
+        ax.text(idx, total, f"comm {ratio:.1f}%", ha="center", va="bottom", fontsize=8)
+    save_current(ASSET_DIR / "fig_fixed_population_comm_breakdown.png")
 
 
 def plot_convergence():
@@ -261,6 +323,8 @@ def main():
     plot_convergence()
     plot_ttest_summary()
     plot_reproduction_improvement_ratio()
+    plot_fixed_population_scalability()
+    plot_fixed_population_comm_breakdown()
 
 
 if __name__ == "__main__":

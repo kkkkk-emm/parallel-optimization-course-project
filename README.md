@@ -2,7 +2,7 @@
 
 This repository is the final project for the parallel and distributed computing course. It contains two complementary TSP routes on `data/pcb442.tsp`: Version A starts from the instructor-provided serial evolutionary algorithm and implements MPI-based DEA, HDEA, and MOVING_HDEA variants; Version B is a completely independent scratch implementation under `src_scratch/` using `SCRATCH_ILS_2OPT`.
 
-The current results support a solution-quality conclusion: under the formal `maxGen=1000` experiment, the compared parallel evolutionary configurations produce lower mean `global_best` values than the serial baseline. Paired statistics keyed by `base_seed` are now the primary statistical check; Welch t-tests are retained as sensitivity analysis. The current results do not support claiming significant runtime speedup.
+The current results support a solution-quality conclusion: under the formal `maxGen=1000` experiment, the compared parallel evolutionary configurations produce lower mean `global_best` values than the serial baseline. Paired statistics keyed by `base_seed` are now the primary statistical check; Welch t-tests are retained as sensitivity analysis. Supplemental fixed-population experiments further separate resource scaling from island-model structure. The current formal results still do not support claiming significant runtime speedup.
 
 ## Project Scope
 
@@ -133,6 +133,20 @@ results/equal_budget_summary.txt
 
 It fixes `total_colony_size=100` and compares SERIAL local=100, DEA n=2 local=50, and DEA n=4 local=25 at `maxGen=1000` over the same 10 seeds. DEA n=2 has mean `403297.000`; DEA n=4 has mean `382385.400`; both are lower than the equal-budget SERIAL mean `438472.100`. This separates algorithmic structure benefit from the main scale-out experiment where every rank keeps 100 individuals.
 
+## Fixed Population And Scalability Experiment
+
+The stricter fixed-population experiment is documented by:
+
+```text
+results/fixed_population_results.csv
+results/fixed_population_summary.csv
+results/fixed_population_summary.txt
+results/figures/fig_fixed_population_scalability.png
+results/figures/fig_fixed_population_comm_breakdown.png
+```
+
+It fixes `total_colony_size=400` and compares SERIAL local=400, DEA n=2 local=200, and DEA n=4 local=100 at `maxGen=1000` over 5 seeds. DEA n=4 has mean `430285.600`, lower than the fixed-population SERIAL mean `481032.200`. The summary also reports migration communication time, total MPI communication time, computation time, communication ratio, speedup, and efficiency. These scalability values are supplemental wall-clock observations and do not replace the formal 70-run quality conclusion.
+
 ## Reproduction Extension Experiment
 
 The reproduction and parallel-effect extension experiment is documented in:
@@ -194,6 +208,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_equal_budget_e
 python .\scripts\analyze_equal_budget.py .\results\equal_budget_results.csv
 ```
 
+Run the fixed-population communication/scalability experiment:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run_fixed_population_experiment.ps1
+python .\scripts\analyze_fixed_population.py .\results\fixed_population_results.csv
+```
+
 Run the supplementary convergence sensitivity experiment:
 
 ```powershell
@@ -225,7 +246,7 @@ python .\scripts\generate_report_figures.py
 Run report/output checks:
 
 ```powershell
-python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py tests/test_version_a_improvement_outputs.py tests/test_version_a_algorithm_smoke.py
+python -m pytest -q tests/test_final_report_outputs.py tests/test_convergence_sensitivity_outputs.py tests/test_reproduction_extension_outputs.py tests/test_scratch_version_b_outputs.py tests/test_version_a_improvement_outputs.py tests/test_version_a_algorithm_smoke.py tests/test_fixed_population_scalability_outputs.py
 ```
 
 Check the protected formal result files:
@@ -243,4 +264,5 @@ Get-FileHash -Algorithm SHA256 results\final_experiment_results.csv,results\fina
 - Do not claim complete paper reproduction.
 - Do not claim MOVING_HDEA is significantly better than DEA/HDEA.
 - Do not claim MPI significantly accelerates runtime in the current results.
+- Treat fixed-population speedup/efficiency as supplemental wall-clock evidence, not as a formal hardware scalability claim.
 - Do not describe Version B as a strict fair ablation against Version A; it is an independent scratch route on the same `pcb442.tsp` instance.
